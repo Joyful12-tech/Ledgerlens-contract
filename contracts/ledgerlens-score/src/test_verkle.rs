@@ -1,4 +1,4 @@
-#![cfg(test)]
+﻿#![cfg(test)]
 
 //! Tests for the Verkle / KZG polynomial commitment system.
 //!
@@ -11,11 +11,11 @@
 //! * Batch path (`submit_scores_batch`) updates commitment identically.
 
 use soroban_sdk::{
-    symbol_short, testutils::Address as _, Address, Bytes, BytesN, Env, Vec,
+    symbol_short, testutils::{Address as _, Ledger}, Address, Bytes, BytesN, Env, Vec,
 };
 
 use crate::{
-    Error, LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission,
+    LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission,
 };
 
 // ── Test infrastructure ──────────────────────────────────────────────────────
@@ -36,12 +36,21 @@ fn initialized<'a>() -> (Env, LedgerLensScoreContractClient<'a>, Address, Addres
     (env, client, admin, service)
 }
 
+/// `Bytes` has no fixed-size array conversion; unpack the 97-byte proof
+/// payload manually for byte-level assertions in these tests.
+fn proof_to_array(proof: &Bytes) -> [u8; 97] {
+    let mut arr = [0u8; 97];
+    for i in 0..97u32 {
+        arr[i as usize] = proof.get(i).unwrap();
+    }
+    arr
+}
+
 // ── Commitment structure tests ───────────────────────────────────────────────
 
 #[test]
 fn commitment_is_48_bytes_from_the_start() {
     let (_env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
     let c = client.get_state_commitment();
     assert_eq!(c.len(), 48, "commitment must be exactly 48 bytes");
 }
@@ -49,7 +58,6 @@ fn commitment_is_48_bytes_from_the_start() {
 #[test]
 fn commitment_has_protocol_prefix() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
     let c = client.get_state_commitment();
     let arr = c.to_array();
     // First 16 bytes = b"LEDGERLENS_KZG_1"
@@ -64,7 +72,6 @@ fn commitment_has_protocol_prefix() {
 #[test]
 fn commitment_changes_after_score_write() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let before = client.get_state_commitment();
     let wallet = Address::generate(&env);
@@ -81,8 +88,7 @@ fn commitment_changes_after_score_write() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let after = client.get_state_commitment();
     assert_ne!(
@@ -95,7 +101,6 @@ fn commitment_changes_after_score_write() {
 #[test]
 fn commitment_changes_on_score_update() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -112,8 +117,7 @@ fn commitment_changes_on_score_update() {
             &80,
             &1,
             &None,
-        )
-        .unwrap();
+        );
     let c1 = client.get_state_commitment();
 
     // Advance past cooldown.
@@ -131,8 +135,7 @@ fn commitment_changes_on_score_update() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
     let c2 = client.get_state_commitment();
 
     assert_ne!(
@@ -147,7 +150,6 @@ fn commitment_changes_on_score_update() {
 #[test]
 fn membership_proof_is_97_bytes() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -163,8 +165,7 @@ fn membership_proof_is_97_bytes() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let proof = client.get_membership_proof(&wallet, &pair);
     assert_eq!(proof.len(), 97, "proof must be exactly 97 bytes");
@@ -173,7 +174,6 @@ fn membership_proof_is_97_bytes() {
 #[test]
 fn membership_proof_type_byte_is_member() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -189,18 +189,16 @@ fn membership_proof_type_byte_is_member() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let proof = client.get_membership_proof(&wallet, &pair);
-    let arr = proof.to_array::<97>().unwrap();
+    let arr = proof_to_array(&proof);
     assert_eq!(arr[0], 0x01, "proof type byte must be 0x01 (member)");
 }
 
 #[test]
 fn verify_membership_returns_true_for_valid_proof() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -218,15 +216,15 @@ fn verify_membership_returns_true_for_valid_proof() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let commitment = client.get_state_commitment();
     let proof = client.get_membership_proof(&wallet, &pair);
+    let timestamp = client.get_score(&wallet, &pair).timestamp;
 
     // Membership proof must verify with the correct score.
     assert!(
-        client.verify_membership(&commitment, &wallet, &pair, &score, &proof),
+        client.verify_membership(&commitment, &wallet, &pair, &score, &timestamp, &proof),
         "valid membership proof must verify"
     );
 }
@@ -234,7 +232,6 @@ fn verify_membership_returns_true_for_valid_proof() {
 #[test]
 fn verify_membership_fails_for_wrong_score() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -251,28 +248,23 @@ fn verify_membership_fails_for_wrong_score() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let commitment = client.get_state_commitment();
     let proof = client.get_membership_proof(&wallet, &pair);
+    let timestamp = client.get_score(&wallet, &pair).timestamp;
 
-    // Wrong score — the evaluation point for membership uses the proof's v,
-    // which embeds the real score; passing score=99 means the v_check diverges.
-    // Note: verify_membership with a member proof ignores the score arg and
-    // verifies the witness against the embedded v; but let's ensure the proof
-    // doesn't magically pass on a wrong key check.
-    //
-    // Actually the membership verification checks z matches the wallet/pair.
-    // The score is encoded in v inside the proof; we verify the witness vs v.
-    // Since the proof's v is computed from score=42, and verify_membership
-    // re-uses that v from the proof, passing score=99 here doesn't affect
-    // the verification directly — but testing wrong WALLET covers key binding.
-    //
-    // Test a wrong wallet to verify key binding:
+    // Wrong score with the correct timestamp must fail: v is bound to
+    // (score, timestamp), so a mismatched score changes the recomputed v.
+    assert!(
+        !client.verify_membership(&commitment, &wallet, &pair, &99, &timestamp, &proof),
+        "proof must not verify for a different score"
+    );
+
+    // Wrong wallet must also fail (key binding via z).
     let wrong_wallet = Address::generate(&env);
     assert!(
-        !client.verify_membership(&commitment, &wrong_wallet, &pair, &42, &proof),
+        !client.verify_membership(&commitment, &wrong_wallet, &pair, &42, &timestamp, &proof),
         "proof must not verify for a different wallet"
     );
 }
@@ -280,7 +272,6 @@ fn verify_membership_fails_for_wrong_score() {
 #[test]
 fn verify_membership_fails_for_wrong_pair() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -298,14 +289,14 @@ fn verify_membership_fails_for_wrong_pair() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let commitment = client.get_state_commitment();
     let proof = client.get_membership_proof(&wallet, &pair);
+    let timestamp = client.get_score(&wallet, &pair).timestamp;
 
     assert!(
-        !client.verify_membership(&commitment, &wallet, &other_pair, &42, &proof),
+        !client.verify_membership(&commitment, &wallet, &other_pair, &42, &timestamp, &proof),
         "proof must not verify for a different asset pair"
     );
 }
@@ -313,7 +304,6 @@ fn verify_membership_fails_for_wrong_pair() {
 #[test]
 fn verify_membership_fails_for_tampered_proof() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -330,19 +320,19 @@ fn verify_membership_fails_for_tampered_proof() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let commitment = client.get_state_commitment();
     let proof = client.get_membership_proof(&wallet, &pair);
+    let timestamp = client.get_score(&wallet, &pair).timestamp;
 
     // Flip the last byte of the witness.
-    let mut arr = proof.to_array::<97>().unwrap();
+    let mut arr = proof_to_array(&proof);
     arr[96] ^= 0xFF;
     let tampered = Bytes::from_array(&env, &arr);
 
     assert!(
-        !client.verify_membership(&commitment, &wallet, &pair, &42, &tampered),
+        !client.verify_membership(&commitment, &wallet, &pair, &42, &timestamp, &tampered),
         "tampered proof witness must not verify"
     );
 }
@@ -350,7 +340,6 @@ fn verify_membership_fails_for_tampered_proof() {
 #[test]
 fn verify_membership_fails_for_stale_commitment() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -367,12 +356,12 @@ fn verify_membership_fails_for_stale_commitment() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     // Snapshot commitment and proof BEFORE the update.
     let old_commitment = client.get_state_commitment();
     let old_proof = client.get_membership_proof(&wallet, &pair);
+    let old_timestamp = client.get_score(&wallet, &pair).timestamp;
 
     // Update the score (past cooldown).
     env.ledger().with_mut(|l| l.timestamp += 3_601);
@@ -388,23 +377,23 @@ fn verify_membership_fails_for_stale_commitment() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     // A new proof against the new commitment should work.
     let new_commitment = client.get_state_commitment();
     let new_proof = client.get_membership_proof(&wallet, &pair);
-    assert!(client.verify_membership(&new_commitment, &wallet, &pair, &75, &new_proof));
+    let new_timestamp = client.get_score(&wallet, &pair).timestamp;
+    assert!(client.verify_membership(&new_commitment, &wallet, &pair, &75, &new_timestamp, &new_proof));
 
     // Old proof against new commitment must fail (commitment changed).
     assert!(
-        !client.verify_membership(&new_commitment, &wallet, &pair, &42, &old_proof),
+        !client.verify_membership(&new_commitment, &wallet, &pair, &42, &old_timestamp, &old_proof),
         "old proof must not verify against new commitment"
     );
 
     // Old proof against old commitment still verifies (snapshot integrity).
     assert!(
-        client.verify_membership(&old_commitment, &wallet, &pair, &42, &old_proof),
+        client.verify_membership(&old_commitment, &wallet, &pair, &42, &old_timestamp, &old_proof),
         "old proof must still verify against the old commitment snapshot"
     );
 }
@@ -414,7 +403,6 @@ fn verify_membership_fails_for_stale_commitment() {
 #[test]
 fn nonmember_proof_type_byte_is_nonmember() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -422,20 +410,19 @@ fn nonmember_proof_type_byte_is_nonmember() {
     // No score submitted — wallet has no entry.
     let proof = client.get_membership_proof(&wallet, &pair);
     assert_eq!(proof.len(), 97);
-    let arr = proof.to_array::<97>().unwrap();
+    let arr = proof_to_array(&proof);
     assert_eq!(arr[0], 0x02, "proof type byte must be 0x02 (non-member)");
 }
 
 #[test]
 fn nonmember_proof_v_is_all_zeros() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
 
     let proof = client.get_membership_proof(&wallet, &pair);
-    let arr = proof.to_array::<97>().unwrap();
+    let arr = proof_to_array(&proof);
     // v occupies bytes [33..65] — must be all-zeros sentinel.
     assert_eq!(
         &arr[33..65],
@@ -447,7 +434,6 @@ fn nonmember_proof_v_is_all_zeros() {
 #[test]
 fn verify_membership_with_score_zero_accepts_nonmember_proof() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -457,7 +443,7 @@ fn verify_membership_with_score_zero_accepts_nonmember_proof() {
     let proof = client.get_membership_proof(&wallet, &pair);
 
     assert!(
-        client.verify_membership(&commitment, &wallet, &pair, &0, &proof),
+        client.verify_membership(&commitment, &wallet, &pair, &0, &0, &proof),
         "non-membership proof must verify when score=0"
     );
 }
@@ -465,7 +451,6 @@ fn verify_membership_with_score_zero_accepts_nonmember_proof() {
 #[test]
 fn verify_membership_with_nonzero_score_rejects_nonmember_proof() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -475,7 +460,7 @@ fn verify_membership_with_nonzero_score_rejects_nonmember_proof() {
 
     // Passing a non-zero score with a non-member proof must fail.
     assert!(
-        !client.verify_membership(&commitment, &wallet, &pair, &1, &proof),
+        !client.verify_membership(&commitment, &wallet, &pair, &1, &0, &proof),
         "non-membership proof must not accept non-zero score"
     );
 }
@@ -483,7 +468,6 @@ fn verify_membership_with_nonzero_score_rejects_nonmember_proof() {
 #[test]
 fn nonmember_proof_fails_for_different_wallet() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let other_wallet = Address::generate(&env);
@@ -495,7 +479,7 @@ fn nonmember_proof_fails_for_different_wallet() {
 
     // Presenting wallet's non-member proof as proof for other_wallet must fail.
     assert!(
-        !client.verify_membership(&commitment, &other_wallet, &pair, &0, &proof),
+        !client.verify_membership(&commitment, &other_wallet, &pair, &0, &0, &proof),
         "non-member proof must not verify for a different wallet"
     );
 }
@@ -505,7 +489,6 @@ fn nonmember_proof_fails_for_different_wallet() {
 #[test]
 fn commitment_reflects_multiple_independent_entries() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let pair = symbol_short!("XLMUSDC");
     let wallet_a = Address::generate(&env);
@@ -523,8 +506,7 @@ fn commitment_reflects_multiple_independent_entries() {
             &80,
             &1,
             &None,
-        )
-        .unwrap();
+        );
     let c1 = client.get_state_commitment();
 
     client
@@ -539,8 +521,7 @@ fn commitment_reflects_multiple_independent_entries() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
     let c2 = client.get_state_commitment();
 
     // Commitment must have changed again.
@@ -549,13 +530,15 @@ fn commitment_reflects_multiple_independent_entries() {
     // Both wallets must produce valid membership proofs against c2.
     let proof_a = client.get_membership_proof(&wallet_a, &pair);
     let proof_b = client.get_membership_proof(&wallet_b, &pair);
+    let timestamp_a = client.get_score(&wallet_a, &pair).timestamp;
+    let timestamp_b = client.get_score(&wallet_b, &pair).timestamp;
 
     assert!(
-        client.verify_membership(&c2, &wallet_a, &pair, &20, &proof_a),
+        client.verify_membership(&c2, &wallet_a, &pair, &20, &timestamp_a, &proof_a),
         "wallet_a membership proof must verify against latest commitment"
     );
     assert!(
-        client.verify_membership(&c2, &wallet_b, &pair, &80, &proof_b),
+        client.verify_membership(&c2, &wallet_b, &pair, &80, &timestamp_b, &proof_b),
         "wallet_b membership proof must verify against latest commitment"
     );
 }
@@ -563,7 +546,6 @@ fn commitment_reflects_multiple_independent_entries() {
 #[test]
 fn nonmember_proof_for_unknown_pair_works_alongside_known_entries() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let pair = symbol_short!("XLMUSDC");
     let absent_pair = symbol_short!("ETH_USDC");
@@ -581,25 +563,25 @@ fn nonmember_proof_for_unknown_pair_works_alongside_known_entries() {
             &85,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let commitment = client.get_state_commitment();
 
     // Non-member proof for the absent pair.
     let proof = client.get_membership_proof(&wallet, &absent_pair);
-    let arr = proof.to_array::<97>().unwrap();
+    let arr = proof_to_array(&proof);
     assert_eq!(arr[0], 0x02, "should be non-member proof");
 
     assert!(
-        client.verify_membership(&commitment, &wallet, &absent_pair, &0, &proof),
+        client.verify_membership(&commitment, &wallet, &absent_pair, &0, &0, &proof),
         "non-member proof for absent pair must verify"
     );
 
     // The existing pair's membership proof must still hold.
     let member_proof = client.get_membership_proof(&wallet, &pair);
+    let member_timestamp = client.get_score(&wallet, &pair).timestamp;
     assert!(
-        client.verify_membership(&commitment, &wallet, &pair, &55, &member_proof),
+        client.verify_membership(&commitment, &wallet, &pair, &55, &member_timestamp, &member_proof),
         "member proof must still verify alongside non-member proof"
     );
 }
@@ -609,7 +591,6 @@ fn nonmember_proof_for_unknown_pair_works_alongside_known_entries() {
 #[test]
 fn batch_submission_updates_commitment() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let pair = symbol_short!("XLMUSDC");
     let wallet1 = Address::generate(&env);
@@ -648,9 +629,11 @@ fn batch_submission_updates_commitment() {
     // Both entries must be provable.
     let proof1 = client.get_membership_proof(&wallet1, &pair);
     let proof2 = client.get_membership_proof(&wallet2, &pair);
+    let timestamp1 = client.get_score(&wallet1, &pair).timestamp;
+    let timestamp2 = client.get_score(&wallet2, &pair).timestamp;
 
-    assert!(client.verify_membership(&after, &wallet1, &pair, &30, &proof1));
-    assert!(client.verify_membership(&after, &wallet2, &pair, &70, &proof2));
+    assert!(client.verify_membership(&after, &wallet1, &pair, &30, &timestamp1, &proof1));
+    assert!(client.verify_membership(&after, &wallet2, &pair, &70, &timestamp2, &proof2));
 }
 
 // ── Proof format edge cases ──────────────────────────────────────────────────
@@ -658,7 +641,6 @@ fn batch_submission_updates_commitment() {
 #[test]
 fn verify_membership_returns_false_for_empty_proof() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -675,14 +657,14 @@ fn verify_membership_returns_false_for_empty_proof() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let commitment = client.get_state_commitment();
+    let timestamp = client.get_score(&wallet, &pair).timestamp;
     let empty = Bytes::new(&env);
 
     assert!(
-        !client.verify_membership(&commitment, &wallet, &pair, &42, &empty),
+        !client.verify_membership(&commitment, &wallet, &pair, &42, &timestamp, &empty),
         "empty proof bytes must not verify"
     );
 }
@@ -690,7 +672,6 @@ fn verify_membership_returns_false_for_empty_proof() {
 #[test]
 fn verify_membership_returns_false_for_wrong_commitment_prefix() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLMUSDC");
@@ -707,11 +688,11 @@ fn verify_membership_returns_false_for_wrong_commitment_prefix() {
             &90,
             &1,
             &None,
-        )
-        .unwrap();
+        );
 
     let proof = client.get_membership_proof(&wallet, &pair);
     let commitment = client.get_state_commitment();
+    let timestamp = client.get_score(&wallet, &pair).timestamp;
 
     // Corrupt the prefix of the commitment.
     let mut arr = commitment.to_array();
@@ -719,7 +700,7 @@ fn verify_membership_returns_false_for_wrong_commitment_prefix() {
     let bad_commitment = BytesN::<48>::from_array(&env, &arr);
 
     assert!(
-        !client.verify_membership(&bad_commitment, &wallet, &pair, &42, &proof),
+        !client.verify_membership(&bad_commitment, &wallet, &pair, &42, &timestamp, &proof),
         "corrupt commitment prefix must cause verify to return false"
     );
 }
@@ -733,7 +714,6 @@ fn verify_membership_returns_false_for_wrong_commitment_prefix() {
 #[test]
 fn range_proof_all_scores_below_80() {
     let (env, client, admin, service) = initialized();
-    client.initialize(&admin, &service);
 
     let pair = symbol_short!("XLMUSDC");
     let wallets = [
@@ -756,8 +736,7 @@ fn range_proof_all_scores_below_80() {
                 &80,
                 &1,
                 &None,
-            )
-            .unwrap();
+            );
         // Advance past cooldown so each submission is accepted.
         env.ledger().with_mut(|l| l.timestamp += 3_601);
     }
@@ -768,29 +747,26 @@ fn range_proof_all_scores_below_80() {
     let mut all_below_80 = true;
     for (w, _s) in wallets.iter().zip(scores.iter()) {
         let proof = client.get_membership_proof(w, &pair);
-        let arr = proof.to_array::<97>().unwrap();
+        let arr = proof_to_array(&proof);
         assert_eq!(arr[0], 0x01, "expected member proof for each wallet");
-
-        // verify_membership with score=*s confirms inclusion.
-        // For the range check we also inspect the v field in the proof:
-        // since v encodes (score, timestamp), we just rely on proof validity
-        // confirming the committed score is the one we submitted.
-        let verified = client.verify_membership(&commitment, w, &pair, &0, &proof);
-        // Note: passing score=0 with a member proof type will fail (correct
-        // boundary behaviour). We use the proper score from the proof's v
-        // field — for test simplicity we re-verify with actual scores.
-        let _ = verified; // above used for structural demonstration only
 
         // True range check: verify with each score value — all must pass
         // for each wallet, and each known score must be < 80.
-        let actual_score_entry = client.get_score(w, &pair).unwrap();
+        let actual_score_entry = client.get_score(w, &pair);
         assert!(
             actual_score_entry.score < 80,
             "all scores in the range proof must be below 80"
         );
         // Membership proof is valid.
         assert!(
-            client.verify_membership(&commitment, w, &pair, &actual_score_entry.score, &proof),
+            client.verify_membership(
+                &commitment,
+                w,
+                &pair,
+                &actual_score_entry.score,
+                &actual_score_entry.timestamp,
+                &proof
+            ),
             "membership proof must verify for range proof participant"
         );
 

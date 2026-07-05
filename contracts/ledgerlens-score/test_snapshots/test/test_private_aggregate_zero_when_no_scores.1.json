@@ -78,7 +78,19 @@
                         "key": {
                           "vec": [
                             {
-                              "symbol": "PrivacyEpsilon"
+                              "symbol": "AdminAuditRoot"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "bytes": "0000000000000000000000000000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "DpEpsilon"
                             }
                           ]
                         },
@@ -246,26 +258,6 @@
                   "u32": 100
                 }
               ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "dp_eps"
-              }
-            ],
-            "data": {
-              "u32": 100
             }
           }
         }
