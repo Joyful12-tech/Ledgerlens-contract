@@ -293,9 +293,12 @@ pub fn encode_proof(
     Bytes::from_array(env, &buf)
 }
 
+/// `(is_member, z, v, witness)` as returned by [`decode_proof`].
+pub type DecodedProof = (bool, [u8; 32], [u8; 32], [u8; 32]);
+
 /// Deserialise a proof payload. Returns `(is_member, z, v, witness)` or
 /// `None` if the byte length is not exactly 97.
-pub fn decode_proof(proof: &Bytes) -> Option<(bool, [u8; 32], [u8; 32], [u8; 32])> {
+pub fn decode_proof(proof: &Bytes) -> Option<DecodedProof> {
     if proof.len() != 97 {
         return None;
     }

@@ -84,6 +84,8 @@ fn commitment(
             timestamp,
             confidence,
             model_version,
+            &BytesN::from_array(env, &[0u8; 32]),
+            0,
         )
         .unwrap()
         .to_bytes()
@@ -657,6 +659,9 @@ fn test_threshold_and_ordinary_attestation_both_present_uses_threshold() {
     let ordinary_att = Some(ScoreAttestation {
         commitment: BytesN::from_array(&env, &digest),
         signature: BytesN::from_array(&env, &sig_bytes),
+        contract_id: BytesN::from_array(&env, &[0u8; 32]),
+        contract_version: 0,
+        nonce: 0,
     });
 
     // Build a valid threshold attestation.

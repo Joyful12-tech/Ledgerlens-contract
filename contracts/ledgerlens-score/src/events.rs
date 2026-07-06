@@ -6,6 +6,10 @@ pub fn pair_weight_updated(env: &Env, asset_pair: &Symbol, weight: u32) {
     env.events().publish((symbol_short!("pw_upd"), asset_pair.clone()), weight);
 }
 
+pub fn pair_weight_reset(env: &Env, asset_pair: &Symbol) {
+    env.events().publish((symbol_short!("pw_rst"), asset_pair.clone()), ());
+}
+
 pub fn score_submitted(env: &Env, wallet: &Address, asset_pair: &Symbol, score: &RiskScore) {
     env.events().publish(
         (symbol_short!("score"), wallet.clone(), asset_pair.clone()),
@@ -94,6 +98,26 @@ pub fn upgrade_vetoed(env: &Env, by: &Address) {
     env.events().publish((symbol_short!("upg_veto"),), by.clone());
 }
 
+pub fn parameter_change_proposed(
+    env: &Env,
+    proposal_id: u64,
+    param_key: &Symbol,
+    executable_after: u64,
+) {
+    env.events().publish(
+        (symbol_short!("prm_prop"),),
+        (proposal_id, param_key.clone(), executable_after),
+    );
+}
+
+pub fn parameter_change_executed(env: &Env, proposal_id: u64, param_key: &Symbol) {
+    env.events().publish((symbol_short!("prm_exec"),), (proposal_id, param_key.clone()));
+}
+
+pub fn parameter_change_vetoed(env: &Env, proposal_id: u64, by: &Address) {
+    env.events().publish((symbol_short!("prm_veto"),), (proposal_id, by.clone()));
+}
+
 pub fn score_history_cleared(env: &Env, wallet: &Address, asset_pair: &Symbol) {
     env.events().publish((symbol_short!("clr_hist"), wallet.clone()), asset_pair.clone());
 }
@@ -106,14 +130,14 @@ pub fn cooldown_updated(env: &Env, cooldown_secs: u64) {
     env.events().publish((symbol_short!("cd_upd"),), cooldown_secs);
 }
 
+pub fn pair_cooldown_updated(env: &Env, asset_pair: &Symbol, cooldown_secs: u64) {
+    env.events().publish((symbol_short!("pcd_upd"), asset_pair.clone()), cooldown_secs);
+}
+
 pub fn rate_limit_overridden(env: &Env, by: &Address, wallet: &Address, asset_pair: &Symbol) {
     env.events()
         .publish((symbol_short!("rl_ovrd"), wallet.clone(), asset_pair.clone()), by.clone());
 }
-
-// ── Score attestation ──────────────────────────────────────────────────────
-
-// ── Score Velocity Cap ────────────────────────────────────────────────────────
 
 pub fn score_velocity_cap_set(env: &Env, enabled: bool, points_per_hour: u32) {
     env.events().publish((symbol_short!("vel_set"),), (enabled, points_per_hour));
@@ -124,16 +148,19 @@ pub fn velocity_cap_overridden(env: &Env, admin: &Address, wallet: &Address, ass
         .publish((symbol_short!("vel_ovr"), wallet.clone(), asset_pair.clone()), admin.clone());
 }
 
-/// Emitted when the admin sets/rotates the off-chain attestation pubkey via
-/// `set_service_pubkey`.
 pub fn service_pubkey_updated(env: &Env, pubkey: &Bytes) {
     env.events().publish((symbol_short!("pk_upd"),), pubkey.clone());
 }
 
-/// Emitted when the admin registers or rotates the threshold-group aggregate
-/// secp256k1 public key via `set_aggregate_service_pubkey`.
 pub fn aggregate_service_pubkey_updated(env: &Env, pubkey: &Bytes) {
     env.events().publish((symbol_short!("agg_pk"),), pubkey.clone());
+}
+
+/// Emitted when `rotate_service_pubkey` is called. `new_key` is the incoming
+/// pubkey; `overlap_expiry` is the ledger timestamp after which the old key
+/// stops being accepted. When `overlap_expiry == 0` the rotation was instant.
+pub fn service_pubkey_rotation_started(env: &Env, new_key: &Bytes, overlap_expiry: u64) {
+    env.events().publish((symbol_short!("pk_rot"),), (new_key.clone(), overlap_expiry));
 }
 
 // ── Merkle-root batch attestation ───────────────────────────────────────────
@@ -150,7 +177,6 @@ pub fn batch_attested(env: &Env, accepted: u32, rejected: u32, merkle_root: &Byt
 
 // ── Multi-model consensus scoring ─────────────────────────────────────────────
 
-/// Emitted when a consensus score is accepted and stored.
 pub fn consensus_score_submitted(
     env: &Env,
     wallet: &Address,
@@ -169,31 +195,20 @@ pub fn consensus_config_updated(env: &Env, k: u32, epsilon: u32) {
     env.events().publish((symbol_short!("cons_cfg"),), (k, epsilon));
 }
 
-// ── Model version governance ─────────────────────────────────────────────
-
-/// Emitted when an admin proposes a model version.
 pub fn model_version_proposed(env: &Env, version: u32, executable_after: u64) {
     env.events().publish((symbol_short!("mv_prop"),), (version, executable_after));
 }
 
-/// Emitted when an admin activates/approves a model version.
 pub fn model_version_activated(env: &Env, version: u32) {
     env.events().publish((symbol_short!("mv_act"),), version);
 }
 
-/// Emitted when an admin deprecates a model version.
 pub fn model_version_deprecated(env: &Env, version: u32) {
     env.events().publish((symbol_short!("mv_depr"),), version);
 }
 
-/// Emitted when the admin updates the consensus configuration.
-
-// (intentionally empty: kept for backward compatibility of the symbol)
-
 // ── History depth ─────────────────────────────────────────────────────────────
 
-/// Emitted when the admin changes the ring-buffer depth via
-/// `set_history_max_depth`.
 pub fn history_depth_updated(env: &Env, depth: u32) {
     env.events().publish((symbol_short!("hd_upd"),), depth);
 }
@@ -215,8 +230,12 @@ pub fn score_delta(
     );
 }
 
-pub fn decay_rate_updated(env: &Env, numerator: u32, denominator: u32) {
+pub fn decay_rate_updated(env: &Env, numerator: u64, denominator: u64) {
     env.events().publish((symbol_short!("decay_upd"),), (numerator, denominator));
+}
+
+pub fn signer_tier_updated(env: &Env, signer: &soroban_sdk::Address, min_score: u32, max_score: u32) {
+    env.events().publish((symbol_short!("tier_upd"),), (signer.clone(), min_score, max_score));
 }
 
 pub fn fee_token_set(env: &Env, token: &Address) {
@@ -250,6 +269,11 @@ pub fn delegate_set(env: &Env, sub_wallet: &Address, custodian: &Address) {
 
 pub fn delegate_removed(env: &Env, sub_wallet: &Address) {
     env.events().publish((symbol_short!("dlg_rem"),), sub_wallet.clone());
+}
+
+/// Emitted when the adaptive threshold is recomputed and changes.
+pub fn adaptive_threshold_updated(env: &Env, new_threshold: u32) {
+    env.events().publish((symbol_short!("at_upd"),), new_threshold);
 }
 
 pub fn counterparty_link_added(
@@ -290,44 +314,6 @@ pub fn contagion_propagated(
     );
 }
 
-// ── Stubs for broken branch ───────────────────────────────────────────────
-
-pub fn score_jump_anomaly(
-    _env: &Env,
-    _wallet: &Address,
-    _asset_pair: &Symbol,
-    _previous_score: u32,
-    _new_score: u32,
-    _delta: i64,
-    _model_version: u32,
-    _timestamp: u64,
-) {
-}
-
-pub fn escalation_triggered(
-    _env: &Env,
-    _wallet: &Address,
-    _asset_pair: &Symbol,
-    _count: u32,
-    _score: u32,
-    _escalation_n: u32,
-) {
-}
-
-pub fn escalation_resolved(
-    _env: &Env,
-    _wallet: &Address,
-    _asset_pair: &Symbol,
-    _count: u32,
-    _score: u32,
-) {
-}
-
-pub fn escalation_threshold_updated(_env: &Env, _old: u32, _new: u32) {}
-// ── Score submission floor ────────────────────────────────────────────────────
-
-/// Emitted when the admin configures the score-floor policy via
-/// `set_score_floor_policy`.
 pub fn score_floor_policy_updated(
     env: &Env,
     enabled: bool,
@@ -380,10 +366,6 @@ pub fn embargo_lifted(env: &Env, wallet: &Address) {
     env.events().publish((symbol_short!("emb_lift"), wallet.clone()), ());
 }
 
-// ── Score dispute mechanism ─────────────────────────────────────────────────────
-
-/// Emitted when a wallet opens a dispute via `open_score_dispute`.
-/// Topic carries the challenger; data carries `(asset_pair, bond, deadline)`.
 pub fn dispute_opened(
     env: &Env,
     challenger: &Address,
@@ -397,8 +379,6 @@ pub fn dispute_opened(
     );
 }
 
-/// Emitted when the admin resolves a dispute by resubmitting a corrected score
-/// via `resolve_dispute_admin`. The escrowed bond is returned to the challenger.
 pub fn dispute_resolved(
     env: &Env,
     challenger: &Address,
@@ -412,8 +392,6 @@ pub fn dispute_resolved(
     );
 }
 
-/// Emitted when a dispute is settled by timeout via `resolve_dispute_timeout`.
-/// The challenger receives the bond plus the fee-reserve bonus.
 pub fn dispute_timed_out(
     env: &Env,
     challenger: &Address,
@@ -425,29 +403,19 @@ pub fn dispute_timed_out(
         .publish((symbol_short!("disp_to"), challenger.clone()), (asset_pair.clone(), bond, bonus));
 }
 
-// ── Finality buffer (pending score commit window) ────────────────────────────
-
-/// Emitted when the admin changes the finality buffer via
-/// `set_finality_buffer`.
 pub fn finality_buffer_updated(env: &Env, secs: u64) {
     env.events().publish((symbol_short!("fb_upd"),), secs);
 }
 
-/// Emitted by `submit_score` when `FinalityBufferSecs > 0` and the score is
-/// written to `PendingScore` instead of taking effect immediately.
 pub fn score_pending(env: &Env, wallet: &Address, asset_pair: &Symbol, commit_after: u64) {
     env.events()
         .publish((symbol_short!("scr_pend"), wallet.clone(), asset_pair.clone()), commit_after);
 }
 
-/// Emitted by `commit_pending_score` after a pending score is moved to live
-/// storage.
 pub fn score_committed(env: &Env, wallet: &Address, asset_pair: &Symbol) {
     env.events().publish((symbol_short!("scr_comm"), wallet.clone()), asset_pair.clone());
 }
 
-/// Emitted by `cancel_pending_score` after the admin removes a pending score
-/// before it could take effect.
 pub fn score_pending_cancelled(
     env: &Env,
     wallet: &Address,
@@ -460,12 +428,17 @@ pub fn score_pending_cancelled(
     );
 }
 
+/// Emitted when an admin vetoes a pending score inside the finality buffer
+/// window.
+pub fn score_vetoed(env: &Env, wallet: &Address, asset_pair: &Symbol, reason_hash: &BytesN<32>) {
+    env.events().publish(
+        (symbol_short!("scr_veto"), wallet.clone(), asset_pair.clone()),
+        reason_hash.clone(),
+    );
+}
+
 // ── Service heartbeat monitor ────────────────────────────────────────────
 
-/// Emitted (by the `get_score` read path) the first time the off-chain
-/// service has been silent for longer than `ServiceHeartbeatAlertThreshold`
-/// since `LastServiceActivityAt`. Fires only once per silence window — see
-/// `ServiceSilentAlertEmitted` and `service_resumed`.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceSilenceAlertEvent {
@@ -474,8 +447,6 @@ pub struct ServiceSilenceAlertEvent {
     pub threshold_secs: u64,
 }
 
-/// Emitted by `submit_score` / `submit_scores_batch` / `ping_heartbeat` when
-/// service activity resumes after a previously alerted silence window.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceResumedEvent {
@@ -491,14 +462,16 @@ pub fn service_resumed(env: &Env, event: &ServiceResumedEvent) {
     env.events().publish((symbol_short!("svc_res"),), event.clone());
 }
 
-/// Emitted when the admin changes the heartbeat alert threshold via
-/// `set_heartbeat_alert_threshold`.
 pub fn heartbeat_threshold_updated(env: &Env, secs: u64) {
     env.events().publish((symbol_short!("hb_upd"),), secs);
 }
 
-pub fn pair_cooldown_updated(env: &Env, asset_pair: &Symbol, secs: u64) {
-    env.events().publish((symbol_short!("pc_upd"), asset_pair.clone()), secs);
+pub fn signer_expiring(env: &Env, signer: &Address) {
+    env.events().publish((symbol_short!("sig_exp"),), signer.clone());
+}
+
+pub fn signer_expired(env: &Env, signer: &Address) {
+    env.events().publish((symbol_short!("sig_expd"),), signer.clone());
 }
 
 pub fn signer_ttl_updated(env: &Env, ttl_secs: u64) {
@@ -515,4 +488,161 @@ pub fn model_version_registered(env: &Env, version: u32) {
 
 pub fn entry_ttls_extended(env: &Env, renewed: u32, requested: u32) {
     env.events().publish((symbol_short!("ttl_ext"),), (renewed, requested));
+}
+
+pub fn dormancy_decay_applied(
+    env: &Env,
+    wallet: &Address,
+    asset_pair: &Symbol,
+    new_score: u32,
+    periods: u32,
+) {
+    env.events().publish(
+        (symbol_short!("drm_dec"), wallet.clone(), asset_pair.clone()),
+        (new_score, periods),
+    );
+}
+
+// ── #297: IQR outlier rejection ───────────────────────────────────────────────
+
+pub fn consensus_signer_rejected(env: &Env, signer: &Address, deviation: u32) {
+    env.events().publish((symbol_short!("iqr_rej"), signer.clone()), deviation);
+}
+
+// ── #298: Upgrade approval events ────────────────────────────────────────────
+
+pub fn upgrade_approval_added(env: &Env, signer: &Address, count: u32, required: u32) {
+    env.events().publish((symbol_short!("upg_appr"), signer.clone()), (count, required));
+}
+
+// ── #299: Governance chain events ─────────────────────────────────────────────
+
+pub fn governance_action_appended(env: &Env, new_head: &soroban_sdk::BytesN<32>) {
+    env.events().publish((symbol_short!("gov_app"),), new_head.clone());
+}
+
+// ── #302: Gate enforcement mode ───────────────────────────────────────────────
+
+pub fn gate_enforcement_mode_set(env: &Env, strict: bool) {
+    env.events().publish((symbol_short!("gate_enf"),), strict);
+}
+
+// ── #289: Score momentum ──────────────────────────────────────────────────────
+
+/// Emitted by `get_score_momentum` when the computed momentum exceeds the
+/// configured alert threshold. `momentum` is the signed rate of change
+/// (score units / second, positive = rising risk).
+pub fn momentum_threshold_crossed(
+    env: &Env,
+    wallet: &Address,
+    asset_pair: &Symbol,
+    momentum: i32,
+    threshold: u32,
+) {
+    env.events().publish(
+        (symbol_short!("mom_cross"), wallet.clone()),
+        (asset_pair.clone(), momentum, threshold),
+    );
+}
+
+pub fn adaptive_epsilon_updated(env: &Env, enabled: bool, scale_factor: u32) {
+    env.events().publish((symbol_short!("ae_upd"),), (enabled, scale_factor));
+}
+
+pub fn adaptive_rate_limit_updated(env: &Env, enabled: bool, variance_scale: u32) {
+    env.events().publish((symbol_short!("arl_upd"),), (enabled, variance_scale));
+}
+
+pub fn cluster_boundaries_updated(env: &Env) {
+    env.events().publish((symbol_short!("clb_upd"),), ());
+}
+
+pub fn epoch_opened(env: &Env, epoch_id: u32) {
+    env.events().publish((symbol_short!("epo_open"),), epoch_id);
+}
+
+pub fn epoch_closed(env: &Env, epoch_id: u32) {
+    env.events().publish((symbol_short!("epo_cls"),), epoch_id);
+}
+
+pub fn escalation_resolved(env: &Env, wallet: &Address, asset_pair: &Symbol, breach_count: u32, score: u32) {
+    env.events().publish(
+        (symbol_short!("esc_res"), wallet.clone(), asset_pair.clone()),
+        (breach_count, score),
+    );
+}
+
+pub fn escalation_threshold_updated(env: &Env, old: u32, new: u32) {
+    env.events().publish((symbol_short!("esc_thr"),), (old, new));
+}
+
+pub fn escalation_triggered(env: &Env, wallet: &Address, asset_pair: &Symbol, breach_count: u32, score: u32, threshold: u32) {
+    env.events().publish(
+        (symbol_short!("esc_trg"), wallet.clone(), asset_pair.clone()),
+        (breach_count, score, threshold),
+    );
+}
+
+pub fn failover_triggered(env: &Env, wallet: &Address, asset_pair: &Symbol) {
+    env.events().publish((symbol_short!("failover"), wallet.clone()), asset_pair.clone());
+}
+
+pub fn flash_protection_mode_updated(env: &Env, mode: u32) {
+    env.events().publish((symbol_short!("fp_upd"),), mode);
+}
+
+pub fn jump_threshold_updated(env: &Env, threshold: u32) {
+    env.events().publish((symbol_short!("jt_upd"),), threshold);
+}
+
+pub fn oracle_registered(env: &Env, asset_pair: &Symbol, oracle: &Address) {
+    env.events().publish((symbol_short!("orc_reg"), asset_pair.clone()), oracle.clone());
+}
+
+pub fn oracle_removed(env: &Env, asset_pair: &Symbol) {
+    env.events().publish((symbol_short!("orc_rem"),), asset_pair.clone());
+}
+
+pub fn param_change_proposed(env: &Env, key: &Symbol, apply_after: u64) {
+    env.events().publish((symbol_short!("pc_prop"),), (key.clone(), apply_after));
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn score_jump_anomaly(
+    env: &Env,
+    wallet: &Address,
+    asset_pair: &Symbol,
+    previous_score: u32,
+    new_score: u32,
+    delta: i64,
+    model_version: u32,
+    timestamp: u64,
+) {
+    env.events().publish(
+        (symbol_short!("jump"), wallet.clone(), asset_pair.clone()),
+        (previous_score, new_score, delta, model_version, timestamp),
+    );
+}
+
+pub fn signer_accuracy_reset(env: &Env, signer: &Address) {
+    env.events().publish((symbol_short!("sa_rst"), signer.clone()), ());
+}
+
+pub fn signer_accuracy_updated(env: &Env, signer: &Address, mad_scaled: u64, count: u64) {
+    env.events().publish((symbol_short!("sa_upd"), signer.clone()), (mad_scaled, count));
+}
+
+pub fn staleness_window_updated(env: &Env, window_secs: u64) {
+    env.events().publish((symbol_short!("sw_upd"),), window_secs);
+}
+
+pub fn suspicious_same_ledger_submission(env: &Env, wallet: &Address, asset_pair: &Symbol, ledger_seq: u32) {
+    env.events().publish(
+        (symbol_short!("flash_sub"), wallet.clone(), asset_pair.clone()),
+        ledger_seq,
+    );
+}
+
+pub fn wallet_cluster_assigned(env: &Env, wallet: &Address, cluster: u32) {
+    env.events().publish((symbol_short!("wc_asgn"), wallet.clone()), cluster);
 }

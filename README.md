@@ -125,7 +125,7 @@ Confidence-gated extension of `query_risk_gate`. Returns `true` only when a scor
 Admin sets a system-wide minimum confidence floor (0–100). When configured, `query_risk_gate_with_confidence` uses `max(caller_param, global_floor)` as the effective floor, letting the contract operator enforce a baseline confidence requirement without requiring every integrating protocol to specify one. Defaults to `0` (no global floor). Returns `InvalidMinConfidence` for values above 100.
 
 ### `supports_interface(capability: Symbol) -> bool`
-Runtime capability detection for the composability interface. Returns `true` for the registered capabilities `score`, `history`, `batch`, `gate`, `aggr`, `count`, and `cgate`, letting integrators feature-detect instead of hardcoding contract version numbers.
+Runtime capability detection for the composability interface. Returns `true` for the registered capabilities `score`, `history`, `batch`, `gate`, `aggr`, `count`, `cgate`, and `pr_rd`, letting integrators feature-detect instead of hardcoding contract version numbers.
 
 ### `propose_upgrade(new_wasm_hash: BytesN<32>)`
 Admin only. Starts a time-locked contract upgrade by committing to `new_wasm_hash`. Stores an `UpgradeProposal` with `executable_after = now + get_upgrade_delay()` and emits `upgrade_proposed`. Does not change the code. Rejected with `UpgradeAlreadyPending` if a proposal is already in flight. See [Upgrade Governance](#upgrade-governance).
@@ -307,9 +307,7 @@ A wallet scoring 60-70 on three pairs individually might not breach the per-pair
 | 23 | `RateLimitExceeded` | Submission before the per-pair cooldown has elapsed |
 | 24 | `InvalidCooldown` | `set_cooldown` value outside `[MIN_COOLDOWN_SECS, MAX_COOLDOWN_SECS]` |
 | 25 | `InvalidTimestamp` | `submit_score` called with `timestamp = 0` |
- feat/confidence-gated-risk-gate
 | 30 | `InvalidMinConfidence` | `set_global_min_confidence` called with a value above 100 |
-=======
 | 30 | `PairPaused` | Submission attempted while this `asset_pair` is individually paused — see [Pause Circuit Breaker](#pause-circuit-breaker) |
 | 31 | `PausedPairIndexFull` | `set_pair_paused` would pause a new pair beyond `MAX_PAUSED_PAIRS` (50) |
 | 43 | `BelowScoreFloor` | Submission below the configured floor for a high-risk wallet — see [Score Submission Floor](#score-submission-floor) |
@@ -534,6 +532,29 @@ fn swap(env: Env, user: Address, amount: i128) -> Result<(), AmmError> {
 ```
 
 A complete, compiling reference contract lives in [`examples/amm_gate.rs`](examples/amm_gate.rs) (build it with `cargo build --example amm_gate -p ledgerlens-score`). For versioning, error-code stability, threshold selection, and caching guidance, read the full [interface specification](docs/interface-spec.md).
+
+### Gated liquidity provision
+
+For liquidity adds — where a low-confidence score is as dangerous as a high-risk
+score — use `query_risk_gate_with_confidence` and reject before moving funds:
+
+```rust
+let is_safe = client.query_risk_gate_with_confidence(
+    &provider,
+    &symbol_short!("XLM_USDC"),
+    &75,  // gate_threshold
+    &50,  // min_confidence
+);
+if !is_safe {
+    return Err(AmmError::HighRiskWallet);
+}
+// ... proceed with liquidity provision ...
+```
+
+When no score exists, the gate fails closed (`false`) and liquidity is rejected.
+See [`examples/amm_gate_example.rs`](examples/amm_gate_example.rs) and
+[`contracts/mock-amm/`](contracts/mock-amm/) (`provide_liquidity_gated`,
+`set_risk_oracle`).
 
 ## Security Features
 

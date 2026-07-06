@@ -529,6 +529,9 @@ fn test_hysteresis_respects_custom_risk_threshold() {
     let (env, client, _admin, _service) = setup();
     // Set custom threshold = 90, margin = 5 → exit_threshold = 85
     client.set_risk_threshold(&Vec::new(&env), &90);
+    // set_risk_threshold is time-locked; advance past the delay and apply it.
+    env.ledger().with_mut(|l| l.timestamp += 86_401);
+    client.apply_param_change(&symbol_short!("risk_thr"));
     client.set_hysteresis_margin(&5);
 
     let wallet = Address::generate(&env);
@@ -704,4 +707,44 @@ fn test_entry_time_isolated_per_pair() {
     submit(&env, &client, &wallet, &pair_a, 80);
     assert!(client.get_risk_band_entry_time(&wallet, &pair_a).is_some());
     assert_eq!(client.get_risk_band_entry_time(&wallet, &pair_b), None);
+}
+
+// ── set_hysteresis_margin: margin >= risk_threshold rejected ─────────────────
+
+#[test]
+fn test_set_hysteresis_margin_at_risk_threshold_rejected() {
+    let (_env, client, _admin, _service) = setup();
+    // Default risk_threshold is 75; margin = 75 must be rejected.
+    let result = client.try_set_hysteresis_margin(&75);
+    assert_eq!(result, Err(Ok(Error::InvalidHysteresisMargin)));
+}
+
+#[test]
+fn test_set_hysteresis_margin_above_risk_threshold_rejected() {
+    let (_env, client, _admin, _service) = setup();
+    // margin = 76 > risk_threshold = 75, also rejected.
+    let result = client.try_set_hysteresis_margin(&76);
+    assert_eq!(result, Err(Ok(Error::InvalidHysteresisMargin)));
+}
+
+#[test]
+fn test_set_hysteresis_margin_below_risk_threshold_accepted() {
+    let (_env, client, _admin, _service) = setup();
+    // margin = 74 < risk_threshold = 75, must be accepted.
+    client.set_hysteresis_margin(&20);
+    assert_eq!(client.get_hysteresis_margin(), 20);
+}
+
+// ── set_hysteresis_margin: non-admin rejected ────────────────────────────────
+
+#[test]
+#[should_panic]
+fn test_set_hysteresis_margin_non_admin_rejected() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, LedgerLensScoreContract);
+    let client = LedgerLensScoreContractClient::new(&env, &contract_id);
+    env.mock_all_auths();
+    client.initialize(&Address::generate(&env), &Address::generate(&env));
+    env.set_auths(&[]);
+    client.set_hysteresis_margin(&10);
 }

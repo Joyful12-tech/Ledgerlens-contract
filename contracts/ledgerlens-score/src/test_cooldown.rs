@@ -61,7 +61,7 @@ fn submit(
             }
         }
         let dig = commitment(env, &client.address, wallet, pair, score, START_TS, 90, 1);
-        Some(crate::ScoreAttestationInput::Single(attest(env, &key, dig)))
+        Some(crate::ScoreAttestationInput { attestation: crate::MaybeScoreAttestation::Some(attest(env, &key, dig)), threshold_attestation: crate::MaybeThresholdAttestation::None, commitment: None })
     } else {
         None
     };
@@ -101,7 +101,7 @@ fn try_submit(
             }
         }
         let dig = commitment(env, &client.address, wallet, pair, score, START_TS, 90, 1);
-        Some(crate::ScoreAttestationInput::Single(attest(env, &key, dig)))
+        Some(crate::ScoreAttestationInput { attestation: crate::MaybeScoreAttestation::Some(attest(env, &key, dig)), threshold_attestation: crate::MaybeThresholdAttestation::None, commitment: None })
     } else {
         None
     };
@@ -133,6 +133,7 @@ fn pubkey_bytes(env: &Env, key: &SigningKey) -> Bytes {
     Bytes::from_slice(env, point.as_bytes())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn commitment(
     env: &Env,
     contract_id: &Address,
@@ -154,6 +155,8 @@ fn commitment(
             timestamp,
             confidence,
             model_version,
+            &BytesN::from_array(env, &[0u8; 32]),
+            crate::constants::CONTRACT_VERSION,
         )
         .unwrap()
         .to_bytes()
@@ -169,6 +172,9 @@ fn attest(env: &Env, key: &SigningKey, digest: [u8; 32]) -> ScoreAttestation {
     ScoreAttestation {
         commitment: BytesN::from_array(env, &digest),
         signature: BytesN::from_array(env, &sig_bytes),
+        contract_id: BytesN::from_array(env, &[0u8; 32]),
+        contract_version: crate::constants::CONTRACT_VERSION,
+        nonce: 0,
     }
 }
 
@@ -208,7 +214,7 @@ fn test_override_then_submit_restarts_cooldown() {
 
     submit(&env, &client, &wallet, &pair, 50);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair);
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
     submit(&env, &client, &wallet, &pair, 70);
 
     // A third submit immediately after must be rejected — the override only
@@ -225,7 +231,7 @@ fn test_override_then_submit_then_wait_full_cooldown() {
     let pair = symbol_short!("XLM_USDC");
 
     submit(&env, &client, &wallet, &pair, 50);
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair);
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
     submit(&env, &client, &wallet, &pair, 70);
 
     advance_to(&env, START_TS + DEFAULT_COOLDOWN_SECS);
@@ -245,7 +251,7 @@ fn test_override_does_not_affect_other_pairs() {
     submit(&env, &client, &wallet, &pair_a, 50);
     submit(&env, &client, &wallet, &pair_b, 60);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair_a);
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair_a, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
 
     // pair_a is cleared — immediate re-submit works.
     submit(&env, &client, &wallet, &pair_a, 70);
@@ -266,7 +272,7 @@ fn test_override_does_not_affect_other_wallets() {
     submit(&env, &client, &wallet_a, &pair, 50);
     submit(&env, &client, &wallet_b, &pair, 60);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet_a, &pair);
+    client.override_rate_limit(&Vec::new(&env), &wallet_a, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
 
     submit(&env, &client, &wallet_a, &pair, 70);
 
@@ -283,9 +289,9 @@ fn test_override_on_never_submitted_pair_is_noop() {
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
 
-    assert_eq!(client.get_last_submit_time(&wallet, &pair), 0);
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair);
-    assert_eq!(client.get_last_submit_time(&wallet, &pair), 0);
+    assert!(client.get_last_submit_time(&wallet, &pair).is_none());
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    assert!(client.get_last_submit_time(&wallet, &pair).is_none());
 
     // First submit after a no-op override still works.
     submit(&env, &client, &wallet, &pair, 42);
@@ -300,10 +306,10 @@ fn test_double_override_is_idempotent() {
 
     submit(&env, &client, &wallet, &pair, 50);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair);
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair);
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
 
-    assert_eq!(client.get_last_submit_time(&wallet, &pair), 0);
+    assert!(client.get_last_submit_time(&wallet, &pair).is_none());
     submit(&env, &client, &wallet, &pair, 70);
     assert_eq!(client.get_score(&wallet, &pair).score, 70);
 }
@@ -321,7 +327,7 @@ fn test_batch_respects_override_for_single_entry() {
     submit(&env, &client, &wallet_b, &pair, 20);
 
     // Override only wallet_a.
-    client.override_rate_limit(&Vec::new(&env), &wallet_a, &pair);
+    client.override_rate_limit(&Vec::new(&env), &wallet_a, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
 
     let mut batch: Vec<ScoreSubmission> = Vec::new(&env);
     batch.push_back(ScoreSubmission {
@@ -419,7 +425,7 @@ fn test_consensus_after_override_accepted() {
     let pair = symbol_short!("XLM_USDC");
 
     submit(&env, &client, &wallet, &pair, 50);
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair);
+    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
 
     let subs = consensus_pair(&env, &client, &key, &wallet, &pair, &[80, 82], START_TS);
     client.submit_consensus_score(&Vec::new(&env), &wallet, &pair, &subs, &START_TS);

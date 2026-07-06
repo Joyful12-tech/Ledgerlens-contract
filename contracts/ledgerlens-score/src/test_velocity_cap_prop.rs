@@ -60,11 +60,7 @@ proptest! {
         // Advance exactly 1 hour: now cap_v points are allowed
         env.ledger().with_mut(|l| l.timestamp += 3600);
 
-        let delta = if score_delta >= initial_score {
-            score_delta - initial_score
-        } else {
-            initial_score - score_delta
-        };
+        let delta = score_delta.abs_diff(initial_score);
 
         if delta <= cap_v {
             // Should be accepted

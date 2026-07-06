@@ -9,3 +9,7 @@ states/
 
 # Ignore downloaded TLC tools jar (should be downloaded in CI, not committed)
 tla2tools.jar
+
+# Ignore TLC counterexample trace dumps (generated per-run, timestamp-named)
+*_TTrace_*.bin
+*_TTrace_*.tla

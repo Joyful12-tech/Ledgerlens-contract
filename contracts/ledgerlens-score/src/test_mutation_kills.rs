@@ -9,9 +9,15 @@ use soroban_sdk::{
 
 use crate::{Error, LedgerLensScoreContract, LedgerLensScoreContractClient};
 
-fn initialized() -> (Env, LedgerLensScoreContractClient, Address, Address) {
+fn initialized<'a>() -> (Env, LedgerLensScoreContractClient<'a>, Address, Address) {
     let env = Env::default();
     env.mock_all_auths();
+    // Match `crate::test::initialized()`'s convention of starting at a
+    // nonzero timestamp: `last_submit != 0` is used contract-wide as a
+    // "no prior submission" sentinel, so a first submission that lands at
+    // genesis (timestamp 0) would collide with it and silently skip the
+    // cooldown/velocity-cap checks on the next submission.
+    env.ledger().with_mut(|l| l.timestamp = 100_000);
     let contract_id = env.register_contract(None, LedgerLensScoreContract);
     let client = LedgerLensScoreContractClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
@@ -231,14 +237,25 @@ fn test_cooldown_kill_comparison_operator_at_boundary() {
 }
 
 /// Mutation kill test: Cooldown guard check `last_submit != 0`.
-/// If this check is removed, initial submission (which sets last_submit=0) could incorrectly fail on resubmission.
+///
+/// The guard exists so a wallet's very first submission (`last_submit == 0`)
+/// is never blocked by `now < last_submit.saturating_add(cooldown)` — at a
+/// low timestamp (100, less than the 3600s default cooldown) that condition
+/// would otherwise spuriously reject the first-ever submission. It does NOT
+/// mean a same-timestamp resubmission should succeed — that's real rate
+/// limiting doing its job. So this test checks: (1) the first submission at
+/// a low timestamp succeeds, then (2) a normal resubmission past the
+/// cooldown also succeeds (confirming the guard didn't leave the gate stuck
+/// open).
 #[test]
 fn test_cooldown_kill_last_submit_guard() {
     let (env, client, _admin, _service) = initialized();
     let wallet = Address::generate(&env);
     let asset_pair = symbol_short!("XLM_USDC");
 
-    // Initial submission (last_submit starts at 0)
+    // Initial submission (last_submit starts at 0) at a timestamp lower than
+    // the cooldown itself — without the guard, `100 < 0 + 3600` would wrongly
+    // reject this first-ever submission.
     env.ledger().with_mut(|l| l.timestamp = 100);
     client.submit_score(
         &Vec::new(&env),
@@ -253,8 +270,8 @@ fn test_cooldown_kill_last_submit_guard() {
         &None,
     );
 
-    // Immediately attempt resubmission at same timestamp
-    // Without the `last_submit != 0` guard, this could be incorrectly rejected
+    // Past the cooldown window — resubmission should succeed normally.
+    env.ledger().with_mut(|l| l.timestamp += 3600);
     client.submit_score(
         &Vec::new(&env),
         &wallet,
@@ -273,30 +290,34 @@ fn test_cooldown_kill_last_submit_guard() {
 
 /// Mutation kill test: require_auth must be called for service account.
 /// If this call is removed, an unauthorized caller could submit scores.
+///
+/// `mock_all_auths()` (in any variant) makes `require_auth()` a no-op for
+/// every address, so it can't be used to observe a rejected caller. The
+/// established pattern (see `test_decay::test_set_decay_rate_non_admin_rejected`)
+/// is: mock auths only long enough to initialize, then `set_auths(&[])` so
+/// the real auth check runs — an unauthorized call then panics rather than
+/// returning an `Err`, since Soroban's `require_auth` failure escalates to a
+/// host panic, not a catchable `Result`.
 #[test]
+#[should_panic]
 fn test_require_auth_kill_service_account() {
-    let (env, client, _admin, service) = initialized();
+    let env = Env::default();
+    let contract_id = env.register_contract(None, LedgerLensScoreContract);
+    let client = LedgerLensScoreContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let service = Address::generate(&env);
+    env.mock_all_auths();
+    client.initialize(&admin, &service);
     env.ledger().with_mut(|l| l.timestamp = 100);
+    env.set_auths(&[]);
 
-    // Disable mock_all_auths to enforce actual authorization
-    // We'll use a fresh env that only mocks the admin auth
-    let env2 = Env::default();
-    env2.mock_all_auths_allowing_non_root_auth();
-    let contract_id = env2.register_contract(None, LedgerLensScoreContract);
-    let client2 = LedgerLensScoreContractClient::new(&env2, &contract_id);
-    let admin2 = Address::generate(&env2);
-    let service2 = Address::generate(&env2);
-    env2.ledger().with_mut(|l| l.timestamp = 100);
-    client2.initialize(&admin2, &service2);
-
-    let wallet = Address::generate(&env2);
+    let wallet = Address::generate(&env);
     let asset_pair = symbol_short!("XLM_USDC");
 
-    // Attempt submission without providing auth from service account
-    // This should fail if require_auth is properly called
-    let unauthorized = Address::generate(&env2);
-    let result = client2.try_submit_score(
-        &Vec::new(&env2),
+    // No auth provided for the service account — must panic if require_auth
+    // is properly called on the submission path.
+    client.submit_score(
+        &Vec::new(&env),
         &wallet,
         &asset_pair,
         &50,
@@ -307,10 +328,6 @@ fn test_require_auth_kill_service_account() {
         &1,
         &None,
     );
-
-    // Should be rejected due to lack of authorization from the service account
-    // or the unauthorized caller
-    assert!(result.is_err());
 }
 
 /// Mutation kill test: Score floor comparison must use correct boundary.

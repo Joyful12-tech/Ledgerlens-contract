@@ -86,4 +86,28 @@ impl Error {
     pub const NotFound: Error = Error::ScoreNotFound;
     pub const FeeRecipientNotSet: Error = Error::FeeTokenNotSet;
     pub const FeeRecipientMismatch: Error = Error::Unauthorized;
+
+    // ── Adaptive Threshold ─────────────────────────────────────────────────
+    /// Returned when an invalid target percentile is provided (must be 50-99).
+    pub const InvalidPercentile: Error = Error::InvalidThreshold;
+
+    pub const ParameterProposalNotFound: Error = Error::ScoreNotFound;
+    pub const ParameterProposalNotReady: Error = Error::UpgradeNotReady;
+    pub const ParameterProposalVetoPeriodEnded: Error = Error::QuorumFailureWindowNotElapsed;
+    pub const ParameterProposalExpired: Error = Error::RevealWindowExpired;
+    pub const TooManyPendingParameterProposals: Error = Error::ServiceSetFull;
+    pub const ParameterProposalAlreadyExecuted: Error = Error::AlreadyInitialized;
+    pub const ParameterProposalVetoed: Error = Error::DisputeAlreadyOpen;
+    pub const InvalidParameterKey: Error = Error::InvalidThreshold;
+    pub const InvalidParameterValue: Error = Error::InvalidScore;
+    pub const InvalidParameterTimeLock: Error = Error::InvalidUpgradeDelay;
+
+    pub const EpochClosed: Error = Error::ContractPaused;
+    pub const InsufficientPairData: Error = Error::InsufficientConsensus;
+    pub const GateCallerListFull: Error = Error::ServiceSetFull;
+    pub const GateCallerNotInList: Error = Error::ScoreNotFound;
+    pub const ParamChangeAlreadyPending: Error = Error::UpgradeAlreadyPending;
+    pub const NoPendingParamChange: Error = Error::NoPendingUpgrade;
+    pub const ParamChangeNotReady: Error = Error::UpgradeNotReady;
+    pub const InvalidParamChangeDelay: Error = Error::InvalidUpgradeDelay;
 }
