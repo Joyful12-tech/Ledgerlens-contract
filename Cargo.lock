@@ -896,6 +896,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "k256",
+ "libm",
  "soroban-sdk",
  "subtle",
 ]

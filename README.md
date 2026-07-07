@@ -293,13 +293,41 @@ A wallet scoring 60-70 on three pairs individually might not breach the per-pair
 | 23 | `RateLimitExceeded` | Submission before the per-pair cooldown has elapsed |
 | 24 | `InvalidCooldown` | `set_cooldown` value outside `[MIN_COOLDOWN_SECS, MAX_COOLDOWN_SECS]` |
 | 25 | `InvalidTimestamp` | `submit_score` called with `timestamp = 0` |
- feat/confidence-gated-risk-gate
-| 30 | `InvalidMinConfidence` | `set_global_min_confidence` called with a value above 100 |
-=======
-| 30 | `PairPaused` | Submission attempted while this `asset_pair` is individually paused — see [Pause Circuit Breaker](#pause-circuit-breaker) |
-| 31 | `PausedPairIndexFull` | `set_pair_paused` would pause a new pair beyond `MAX_PAUSED_PAIRS` (50) |
-| 43 | `BelowScoreFloor` | Submission below the configured floor for a high-risk wallet — see [Score Submission Floor](#score-submission-floor) |
-| 44 | `InvalidScoreFloorPolicy` | `set_score_floor_policy` given `high_water_mark` outside `[50, 100]` or `floor_value` not strictly below it |
+| 26 | `ServicePubkeyNotSet` | Attestation-gated call before a service pubkey has been registered |
+| 27 | `InvalidAttestation` | Signature verification failed for a submitted attestation |
+| 28 | `InvalidPubkeyLength` | Registered service pubkey is not the expected byte length |
+| 29 | `InvalidHistoryDepth` | History-depth parameter outside its allowed range |
+| 30 | `InsufficientConsensus` | Fewer model submissions than the configured consensus threshold `k` |
+| 31 | `ConsensusInputEmpty` | Consensus computation called with no model inputs |
+| 32 | `InvalidConsensusConfig` | Consensus configuration parameters outside their allowed ranges |
+| 33 | `AdminSetFull` | `add_admin_signer` when the admin set already has `MAX_ADMIN_SIGNERS` members |
+| 34 | `AdminSignerNotInSet` | `remove_admin_signer` with an address not in the admin set |
+| 35 | `InsufficientAdminSigners` | Fewer than threshold admin signers supplied for a multisig action |
+| 36 | `CyclicDelegation` | Delegation chain would form a cycle |
+| 37 | `ScoreEmbargoed` | Submission attempted while this wallet/pair is under embargo |
+| 38 | `FeeTokenNotSet` | Fee-charging call before a fee token has been configured |
+| 39 | `QuorumFailureWindowNotElapsed` | Retry attempted before the quorum-failure cooldown window has elapsed |
+| 40 | `RevealWindowExpired` | Commit-reveal `reveal` called after its window closed |
+| 41 | `CommitmentMismatch` | Revealed value does not match the earlier commitment |
+| 42 | `InvalidFinalityBuffer` | Finality-buffer parameter outside its allowed range |
+| 43 | `NoPendingScore` | Finality-buffer action with no pending (committed but unfinalized) score |
+| 44 | `FinalityWindowNotElapsed` | `finalize_score` called before the finality buffer has elapsed |
+| 45 | `InvalidDisputeBond` | Dispute bond outside its allowed range |
+| 46 | `DisputeAlreadyOpen` | `open_dispute` while a dispute is already open for that score |
+| 47 | `DisputeNotFound` | Dispute-resolving call with no matching open dispute |
+| 48 | `DisputeNotYetTimedOut` | Dispute timeout resolution attempted before the timeout elapsed |
+| 49 | `InvalidHysteresisMargin` | Hysteresis margin parameter outside its allowed range |
+| 50 | `InvalidModelPriorWeight` | Model prior-weight parameter outside its allowed range |
+
+The `Error` enum is capped at 50 variants (Soroban XDR spec limit). Several feature-specific error names introduced after the cap was reached are aliases of the codes above rather than new variants (see `errors.rs`):
+
+| Alias | Reuses code | Reused name |
+|---|---|---|
+| `InvalidMinConfidence` | 5 | `InvalidConfidence` |
+| `PairPaused` | 7 | `ContractPaused` |
+| `PausedPairIndexFull` | 17 | `ServiceSetFull` |
+| `BelowScoreFloor` | 4 | `InvalidScore` |
+| `InvalidScoreFloorPolicy` | 16 | `InvalidThreshold` |
 
 ## Pause Circuit Breaker
 
