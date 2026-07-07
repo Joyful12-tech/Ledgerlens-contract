@@ -7,12 +7,11 @@ use crate::constants::{
 use crate::errors::Error;
 use crate::types::{
     AdaptiveRateLimit, AggregateRiskScore, DataKey, DataKeyB, DataKeyC, DataKeyD, DecayCurve,
-    EmbargoExpiry, FlashProtectionMode, GateDataKey, HllSketch, InterpolationMethod,
-    JumpStats, ModelVersionStats, ParamChangeProposal, ParameterProposalRecord,
-    ParameterProposalStatus, PairVolatilityState, PendingScoreEntry, RateLimitOverrideEntry,
-    RiskScore, ScoreDispute, ScoreFloorPolicy, ScoreHistogram,
-    ScoreTrend, ScoreVelocityCap, SignerAccuracyRecord, SubscorePayload, TokenBucket,
-    UpgradeProposal, WelfordCorrState,
+    EmbargoExpiry, FlashProtectionMode, GateDataKey, HllSketch, InterpolationMethod, JumpStats,
+    ModelVersionStats, PairVolatilityState, ParamChangeProposal, ParameterProposalRecord,
+    ParameterProposalStatus, PendingScoreEntry, RateLimitOverrideEntry, RiskScore, ScoreDispute,
+    ScoreFloorPolicy, ScoreHistogram, ScoreTrend, ScoreVelocityCap, SignerAccuracyRecord,
+    SubscorePayload, TokenBucket, UpgradeProposal, WelfordCorrState,
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, Symbol, Vec};
 
@@ -604,27 +603,24 @@ pub fn set_upgrade_delay(env: &Env, delay_secs: u64) {
 // ── Parameter change governance ───────────────────────────────────────────────
 
 pub fn next_parameter_proposal_id(env: &Env) -> u64 {
-    let id: u64 = env
-        .storage()
-        .instance()
-        .get(&DataKeyB::ParameterProposalNextId)
-        .unwrap_or(1);
-    env.storage()
-        .instance()
-        .set(&DataKeyB::ParameterProposalNextId, &(id.saturating_add(1)));
+    let id: u64 = env.storage().instance().get(&DataKeyB::ParameterProposalNextId).unwrap_or(1);
+    env.storage().instance().set(&DataKeyB::ParameterProposalNextId, &(id.saturating_add(1)));
     id
 }
 
-pub fn get_parameter_proposal_record(env: &Env, proposal_id: u64) -> Option<ParameterProposalRecord> {
-    env.storage()
-        .instance()
-        .get(&DataKeyB::ParameterProposal(proposal_id))
+pub fn get_parameter_proposal_record(
+    env: &Env,
+    proposal_id: u64,
+) -> Option<ParameterProposalRecord> {
+    env.storage().instance().get(&DataKeyB::ParameterProposal(proposal_id))
 }
 
-pub fn set_parameter_proposal_record(env: &Env, proposal_id: u64, record: &ParameterProposalRecord) {
-    env.storage()
-        .instance()
-        .set(&DataKeyB::ParameterProposal(proposal_id), record);
+pub fn set_parameter_proposal_record(
+    env: &Env,
+    proposal_id: u64,
+    record: &ParameterProposalRecord,
+) {
+    env.storage().instance().set(&DataKeyB::ParameterProposal(proposal_id), record);
 }
 
 pub fn get_pending_parameter_proposal_ids(env: &Env) -> Vec<u64> {
@@ -635,9 +631,7 @@ pub fn get_pending_parameter_proposal_ids(env: &Env) -> Vec<u64> {
 }
 
 pub fn set_pending_parameter_proposal_ids(env: &Env, ids: &Vec<u64>) {
-    env.storage()
-        .instance()
-        .set(&DataKeyB::PendingParameterProposalIds, ids);
+    env.storage().instance().set(&DataKeyB::PendingParameterProposalIds, ids);
 }
 
 pub fn push_pending_parameter_proposal(env: &Env, proposal_id: u64) {
@@ -675,9 +669,7 @@ pub fn mark_parameter_proposal_status(
 }
 
 pub fn is_parameter_proposal_expired(proposal: &crate::types::ParameterProposal, now: u64) -> bool {
-    let expiry = proposal
-        .proposed_at
-        .saturating_add(proposal.time_lock_secs.saturating_mul(2));
+    let expiry = proposal.proposed_at.saturating_add(proposal.time_lock_secs.saturating_mul(2));
     now > expiry
 }
 
@@ -719,16 +711,11 @@ pub fn test_seed_pending_parameter_proposals(
             proposed_at: now,
             time_lock_secs,
         };
-        let record = ParameterProposalRecord {
-            proposal,
-            status: ParameterProposalStatus::Pending,
-        };
+        let record = ParameterProposalRecord { proposal, status: ParameterProposalStatus::Pending };
         set_parameter_proposal_record(env, i as u64, &record);
         push_pending_parameter_proposal(env, i as u64);
     }
-    env.storage()
-        .instance()
-        .set(&DataKeyB::ParameterProposalNextId, &(count as u64 + 1));
+    env.storage().instance().set(&DataKeyB::ParameterProposalNextId, &(count as u64 + 1));
 }
 
 // ── Multi-sig admin set ──────────────────────────────────────────────────────
@@ -767,9 +754,7 @@ pub fn get_signer_tier(env: &Env, signer: &Address) -> crate::types::TierBounds 
 }
 
 pub fn set_signer_tier(env: &Env, signer: &Address, bounds: &crate::types::TierBounds) {
-    env.storage()
-        .instance()
-        .set(&DataKey::SignerTier(signer.clone()), bounds);
+    env.storage().instance().set(&DataKey::SignerTier(signer.clone()), bounds);
 }
 
 pub fn set_service_threshold(env: &Env, threshold: u32) {
@@ -812,11 +797,8 @@ pub fn clear_breach_count(env: &Env, wallet: &Address, asset_pair: &Symbol) {
 
 pub fn update_model_stats(env: &Env, model_version: u32, score: u32) {
     let key = DataKeyB::ModelStats(model_version);
-    let mut stats: ModelVersionStats = env
-        .storage()
-        .instance()
-        .get(&key)
-        .unwrap_or(ModelVersionStats {
+    let mut stats: ModelVersionStats =
+        env.storage().instance().get(&key).unwrap_or(ModelVersionStats {
             model_version,
             submission_count: 0,
             score_sum: 0,
@@ -828,14 +810,9 @@ pub fn update_model_stats(env: &Env, model_version: u32, score: u32) {
     env.storage().instance().set(&key, &stats);
 
     let idx_key = DataKeyB::ModelVersionIndex;
-    let mut versions: Vec<u32> = env
-        .storage()
-        .instance()
-        .get(&idx_key)
-        .unwrap_or_else(|| Vec::new(env));
-    if !versions.contains(model_version)
-        && versions.len() < crate::constants::MAX_MODEL_VERSIONS
-    {
+    let mut versions: Vec<u32> =
+        env.storage().instance().get(&idx_key).unwrap_or_else(|| Vec::new(env));
+    if !versions.contains(model_version) && versions.len() < crate::constants::MAX_MODEL_VERSIONS {
         versions.push_back(model_version);
         env.storage().instance().set(&idx_key, &versions);
     }
@@ -1000,7 +977,10 @@ pub fn set_unique_wallets_hll(env: &Env, asset_pair: &Symbol, sketch: &HllSketch
 }
 
 pub fn get_hll_precision(env: &Env) -> u32 {
-    env.storage().instance().get(&DataKeyB::HllPrecision).unwrap_or(crate::constants::HLL_DEFAULT_PRECISION)
+    env.storage()
+        .instance()
+        .get(&DataKeyB::HllPrecision)
+        .unwrap_or(crate::constants::HLL_DEFAULT_PRECISION)
 }
 
 pub fn set_hll_precision(env: &Env, precision: u32) {
@@ -1072,14 +1052,14 @@ pub fn hll_estimate(env: &Env, asset_pair: &Symbol) -> u64 {
         if r == 0 {
             zeros += 1;
         }
-        sum += 2.0_f64.powf(-(r as f64));
+        sum += libm::pow(2.0, -(r as f64));
     }
-    let estimate = hll_alpha(sketch.precision) * (m as f64).powi(2) / sum;
+    let estimate = hll_alpha(sketch.precision) * (m as f64) * (m as f64) / sum;
     if zeros > 0 && estimate <= 2.5 * (m as f64) {
-        let corrected = (m as f64) * ((m as f64) / (zeros as f64)).ln();
-        corrected.round() as u64
+        let corrected = (m as f64) * libm::log((m as f64) / (zeros as f64));
+        libm::round(corrected) as u64
     } else {
-        estimate.round() as u64
+        libm::round(estimate) as u64
     }
 }
 
@@ -1186,9 +1166,10 @@ pub fn set_decay_rate(env: &Env, numerator: u64, denominator: u64) {
 }
 
 pub fn set_signer_tier_bounds(env: &Env, signer: &Address, min_score: u32, max_score: u32) {
-    env.storage()
-        .instance()
-        .set(&DataKey::SignerTier(signer.clone()), &crate::types::TierBounds { min_score, max_score });
+    env.storage().instance().set(
+        &DataKey::SignerTier(signer.clone()),
+        &crate::types::TierBounds { min_score, max_score },
+    );
 }
 
 // ── Global minimum confidence floor ──────────────────────────────────────────
@@ -1581,10 +1562,12 @@ pub fn get_embargo_expiry(env: &Env, wallet: &Address) -> Option<u64> {
     }
 }
 
-
 pub fn get_embargoed_wallets(env: &Env) -> Vec<Address> {
-    let wallets: Vec<Address> =
-        env.storage().temporary().get(&DataKey::EmbargoedWalletIndex).unwrap_or_else(|| Vec::new(env));
+    let wallets: Vec<Address> = env
+        .storage()
+        .temporary()
+        .get(&DataKey::EmbargoedWalletIndex)
+        .unwrap_or_else(|| Vec::new(env));
     if !wallets.is_empty() {
         env.storage().temporary().extend_ttl(
             &DataKey::EmbargoedWalletIndex,
@@ -1628,11 +1611,7 @@ pub fn clear_embargoed_index(env: &Env) {
 // ── Active embargo counter ────────────────────────────────────────────────────
 
 pub fn get_active_embargo_count(env: &Env) -> u32 {
-    let count: u32 = env
-        .storage()
-        .persistent()
-        .get(&DataKey::ActiveEmbargoCount)
-        .unwrap_or(0);
+    let count: u32 = env.storage().persistent().get(&DataKey::ActiveEmbargoCount).unwrap_or(0);
     if count > 0 {
         env.storage().persistent().extend_ttl(
             &DataKey::ActiveEmbargoCount,
@@ -2224,22 +2203,58 @@ pub fn set_signer_rotation_grace(env: &Env, grace_secs: u64) {
 
 // ── Dispute commit-reveal helpers ────────────────────────────────────────────
 
-pub fn set_dispute_commit(env: &Env, challenger: &Address, wallet: &Address, pair: &Symbol, hash: &BytesN<32>) {
-    env.storage().temporary().set(&DataKeyB::DisputeCommit(challenger.clone(), wallet.clone(), pair.clone()), hash);
-    env.storage().temporary().set(&DataKeyB::DisputeCommitTime(challenger.clone(), wallet.clone(), pair.clone()), &env.ledger().timestamp());
+pub fn set_dispute_commit(
+    env: &Env,
+    challenger: &Address,
+    wallet: &Address,
+    pair: &Symbol,
+    hash: &BytesN<32>,
+) {
+    env.storage()
+        .temporary()
+        .set(&DataKeyB::DisputeCommit(challenger.clone(), wallet.clone(), pair.clone()), hash);
+    env.storage().temporary().set(
+        &DataKeyB::DisputeCommitTime(challenger.clone(), wallet.clone(), pair.clone()),
+        &env.ledger().timestamp(),
+    );
 }
 
-pub fn get_dispute_commit(env: &Env, challenger: &Address, wallet: &Address, pair: &Symbol) -> Option<BytesN<32>> {
-    env.storage().temporary().get(&DataKeyB::DisputeCommit(challenger.clone(), wallet.clone(), pair.clone()))
+pub fn get_dispute_commit(
+    env: &Env,
+    challenger: &Address,
+    wallet: &Address,
+    pair: &Symbol,
+) -> Option<BytesN<32>> {
+    env.storage().temporary().get(&DataKeyB::DisputeCommit(
+        challenger.clone(),
+        wallet.clone(),
+        pair.clone(),
+    ))
 }
 
-pub fn get_dispute_commit_time(env: &Env, challenger: &Address, wallet: &Address, pair: &Symbol) -> u64 {
-    env.storage().temporary().get(&DataKeyB::DisputeCommitTime(challenger.clone(), wallet.clone(), pair.clone())).unwrap_or(0)
+pub fn get_dispute_commit_time(
+    env: &Env,
+    challenger: &Address,
+    wallet: &Address,
+    pair: &Symbol,
+) -> u64 {
+    env.storage()
+        .temporary()
+        .get(&DataKeyB::DisputeCommitTime(challenger.clone(), wallet.clone(), pair.clone()))
+        .unwrap_or(0)
 }
 
 pub fn remove_dispute_commit(env: &Env, challenger: &Address, wallet: &Address, pair: &Symbol) {
-    env.storage().temporary().remove(&DataKeyB::DisputeCommit(challenger.clone(), wallet.clone(), pair.clone()));
-    env.storage().temporary().remove(&DataKeyB::DisputeCommitTime(challenger.clone(), wallet.clone(), pair.clone()));
+    env.storage().temporary().remove(&DataKeyB::DisputeCommit(
+        challenger.clone(),
+        wallet.clone(),
+        pair.clone(),
+    ));
+    env.storage().temporary().remove(&DataKeyB::DisputeCommitTime(
+        challenger.clone(),
+        wallet.clone(),
+        pair.clone(),
+    ));
 }
 
 pub fn set_reveal_window_secs(env: &Env, secs: u64) {
@@ -2253,10 +2268,7 @@ pub fn set_decay_curve(env: &Env, curve: &DecayCurve) {
 }
 
 pub fn get_decay_curve(env: &Env) -> DecayCurve {
-    env.storage()
-        .instance()
-        .get(&DataKeyB::DecayCurveConfig)
-        .unwrap_or(DecayCurve::Exponential)
+    env.storage().instance().get(&DataKeyB::DecayCurveConfig).unwrap_or(DecayCurve::Exponential)
 }
 
 // ── Issue #283: Dormancy decay ───────────────────────────────────────────────
@@ -2363,8 +2375,7 @@ pub fn get_pair_score_count(env: &Env, asset_pair: &Symbol) -> u64 {
 /// write for a combination — callers check `peek_score` **before** writing
 /// to decide whether the combination is new.
 pub fn increment_total_wallets_scored(env: &Env) {
-    let current: u64 =
-        env.storage().instance().get(&DataKeyB::TotalWalletsScored).unwrap_or(0);
+    let current: u64 = env.storage().instance().get(&DataKeyB::TotalWalletsScored).unwrap_or(0);
     env.storage().instance().set(&DataKeyB::TotalWalletsScored, &(current + 1));
 }
 
@@ -2464,11 +2475,20 @@ fn welford_key(pair_a: &Symbol, pair_b: &Symbol) -> DataKeyD {
     DataKeyD::WelfordCorrState(pair_a.clone(), pair_b.clone())
 }
 
-pub fn get_welford_corr_state(env: &Env, pair_a: &Symbol, pair_b: &Symbol) -> Option<WelfordCorrState> {
+pub fn get_welford_corr_state(
+    env: &Env,
+    pair_a: &Symbol,
+    pair_b: &Symbol,
+) -> Option<WelfordCorrState> {
     env.storage().instance().get(&welford_key(pair_a, pair_b))
 }
 
-pub fn set_welford_corr_state(env: &Env, pair_a: &Symbol, pair_b: &Symbol, state: &WelfordCorrState) {
+pub fn set_welford_corr_state(
+    env: &Env,
+    pair_a: &Symbol,
+    pair_b: &Symbol,
+    state: &WelfordCorrState,
+) {
     env.storage().instance().set(&welford_key(pair_a, pair_b), state);
 }
 
@@ -2496,7 +2516,9 @@ pub fn get_token_bucket(env: &Env, wallet: &Address, asset_pair: &Symbol) -> Opt
 }
 
 pub fn set_token_bucket(env: &Env, wallet: &Address, asset_pair: &Symbol, bucket: &TokenBucket) {
-    env.storage().instance().set(&DataKeyD::TokenBucket(wallet.clone(), asset_pair.clone()), bucket);
+    env.storage()
+        .instance()
+        .set(&DataKeyD::TokenBucket(wallet.clone(), asset_pair.clone()), bucket);
 }
 
 pub fn get_burst_capacity(env: &Env) -> u32 {
@@ -2546,7 +2568,10 @@ pub fn set_pair_volatility_window(env: &Env, secs: u64) {
 // ── Flash-loan protection (issue #300) ────────────────────────────────────────
 
 pub fn get_flash_protection_mode(env: &Env) -> FlashProtectionMode {
-    env.storage().instance().get(&DataKeyD::FlashProtectionMode).unwrap_or(FlashProtectionMode::Warn)
+    env.storage()
+        .instance()
+        .get(&DataKeyD::FlashProtectionMode)
+        .unwrap_or(FlashProtectionMode::Warn)
 }
 
 pub fn set_flash_protection_mode(env: &Env, mode: &FlashProtectionMode) {
