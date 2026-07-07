@@ -43,7 +43,12 @@ fn test_single_override_appends_entry() {
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &justification(&env, b"urgent fix"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &justification(&env, b"urgent fix"),
+    );
 
     let log = client.get_rate_limit_override_log();
     assert_eq!(log.len(), 1);
@@ -62,8 +67,18 @@ fn test_multiple_overrides_accumulate() {
     let pair_a = symbol_short!("XLM_USDC");
     let pair_b = symbol_short!("XLM_BTC");
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair_a, &justification(&env, b"reason a"));
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair_b, &justification(&env, b"reason b"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair_a,
+        &justification(&env, b"reason a"),
+    );
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair_b,
+        &justification(&env, b"reason b"),
+    );
 
     let log = client.get_rate_limit_override_log();
     assert_eq!(log.len(), 2);
@@ -106,12 +121,7 @@ fn test_ring_buffer_evicts_oldest() {
 
     // Fill the buffer to exactly the cap.
     for _ in 0..cap {
-        client.override_rate_limit(
-            &Vec::new(&env),
-            &wallet,
-            &pair,
-            &justification(&env, b"fill"),
-        );
+        client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &justification(&env, b"fill"));
     }
     assert_eq!(client.get_rate_limit_override_log().len(), cap);
 

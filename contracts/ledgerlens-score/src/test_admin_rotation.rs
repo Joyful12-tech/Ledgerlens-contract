@@ -56,8 +56,16 @@ fn test_new_admin_can_commit_pending_score() {
     // Enable finality buffer and submit a score — it enters pending state.
     client.set_finality_buffer(&Vec::new(&env), &FINALITY_BUFFER_SECS);
     client.submit_score(
-        &Vec::new(&env), &wallet, &pair,
-        &75, &true, &false, &START_TS, &90, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &75,
+        &true,
+        &false,
+        &START_TS,
+        &90,
+        &1,
+        &None,
     );
 
     // Score must NOT be live yet.
@@ -91,8 +99,16 @@ fn test_new_admin_can_cancel_pending_score() {
 
     client.set_finality_buffer(&Vec::new(&env), &FINALITY_BUFFER_SECS);
     client.submit_score(
-        &Vec::new(&env), &wallet, &pair,
-        &80, &false, &true, &START_TS, &85, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &80,
+        &false,
+        &true,
+        &START_TS,
+        &85,
+        &1,
+        &None,
     );
     assert!(client.get_pending_score(&wallet, &pair).is_some());
 
@@ -223,12 +239,28 @@ fn test_rotation_with_multiple_pending_scores() {
     client.set_finality_buffer(&Vec::new(&env), &FINALITY_BUFFER_SECS);
 
     client.submit_score(
-        &Vec::new(&env), &wallet, &pair_a,
-        &40, &false, &false, &START_TS, &80, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair_a,
+        &40,
+        &false,
+        &false,
+        &START_TS,
+        &80,
+        &1,
+        &None,
     );
     client.submit_score(
-        &Vec::new(&env), &wallet, &pair_b,
-        &60, &false, &false, &START_TS, &85, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair_b,
+        &60,
+        &false,
+        &false,
+        &START_TS,
+        &85,
+        &1,
+        &None,
     );
 
     // Both scores must be pending.

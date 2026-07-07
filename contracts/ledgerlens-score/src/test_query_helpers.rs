@@ -6,9 +6,7 @@ use soroban_sdk::{
     Address, Env, Vec,
 };
 
-use crate::{
-    LedgerLensScoreContract, LedgerLensScoreContractClient,
-};
+use crate::{LedgerLensScoreContract, LedgerLensScoreContractClient};
 
 fn setup<'a>() -> (Env, LedgerLensScoreContractClient<'a>, Address, Address) {
     let env = Env::default();

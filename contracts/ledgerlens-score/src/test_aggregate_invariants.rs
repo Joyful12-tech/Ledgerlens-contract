@@ -68,9 +68,7 @@ fn make_env<'a>() -> (Env, LedgerLensScoreContractClient<'a>) {
 /// Builds a short Symbol for pair `i` without using `format!` (no_std).
 fn pair_sym(env: &Env, i: u32) -> Symbol {
     // Symbols up to 9 chars; encode as "P" followed by decimal digits.
-    let digits = [
-        b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9',
-    ];
+    let digits = [b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
     let mut buf = [b'P', b'0', b'0'];
     if i < 10 {
         buf[1] = digits[i as usize];
@@ -95,7 +93,8 @@ fn submit_once(
         wallet,
         pair,
         &score,
-        &false, &false,
+        &false,
+        &false,
         &(env.ledger().timestamp().max(1)),
         &80,
         &1,
@@ -129,7 +128,8 @@ fn prop_aggregate_score_in_valid_range() {
         let agg = client.get_aggregate_score(&wallet);
         assert!(
             agg.aggregate_score <= 100,
-            "case {case}: aggregate_score={} out of range", agg.aggregate_score
+            "case {case}: aggregate_score={} out of range",
+            agg.aggregate_score
         );
         // pair_count must match submitted pairs.
         assert_eq!(agg.pair_count, num_pairs, "case {case}: wrong pair_count");
@@ -158,7 +158,8 @@ fn prop_single_pair_aggregate_equals_raw_score() {
 
         let agg = client.get_aggregate_score(&wallet);
         assert_eq!(
-            agg.aggregate_score, score,
+            agg.aggregate_score,
+            score,
             "case {case}: single-pair aggregate {agg_score} != raw score {score}",
             agg_score = agg.aggregate_score
         );
@@ -192,7 +193,8 @@ fn prop_equal_weights_aggregate_equals_unweighted_mean() {
         let expected_mean = (score_sum / num_pairs as u64) as u32;
         let agg = client.get_aggregate_score(&wallet);
         assert_eq!(
-            agg.aggregate_score, expected_mean,
+            agg.aggregate_score,
+            expected_mean,
             "case {case}: equal-weight mean mismatch: got {agg_score}, expected {expected_mean}",
             agg_score = agg.aggregate_score
         );
@@ -249,8 +251,11 @@ fn prop_zero_weight_pairs_excluded_from_aggregate() {
             agg_a.aggregate_score, agg_b.aggregate_score
         );
         // pair_count still includes the zero-weight pair.
-        assert_eq!(agg_b.pair_count, num_pairs + 1,
-            "case {case}: pair_count should include zero-weight pair");
+        assert_eq!(
+            agg_b.pair_count,
+            num_pairs + 1,
+            "case {case}: pair_count should include zero-weight pair"
+        );
     }
 }
 
@@ -289,7 +294,9 @@ fn prop_aggregate_max_pair_score_is_correct() {
     for (i, s) in pairs_and_scores {
         let pair = pair_sym(&env, i);
         submit_once(&env, &client, &wallet, &pair, s);
-        if s > max_expected { max_expected = s; }
+        if s > max_expected {
+            max_expected = s;
+        }
     }
     let agg = client.get_aggregate_score(&wallet);
     assert_eq!(agg.max_pair_score, max_expected);

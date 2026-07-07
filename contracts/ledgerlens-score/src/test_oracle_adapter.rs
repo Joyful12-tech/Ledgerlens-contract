@@ -1,8 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype,
-    symbol_short,
+    contract, contractimpl, contracttype, symbol_short,
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,
 };
@@ -82,7 +81,18 @@ fn test_no_oracle_zero_confidence_floor() {
     let wallet = Address::generate(&env);
     let pair = symbol_short!("XLM_USDC");
 
-    client.submit_score(&Vec::new(&env), &wallet, &pair, &50, &false, &false, &START_TS, &80, &1, &None);
+    client.submit_score(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &50,
+        &false,
+        &false,
+        &START_TS,
+        &80,
+        &1,
+        &None,
+    );
 
     let eff = client.get_effective_score(&wallet, &pair);
     assert_eq!(eff.confidence_floor, 0);
@@ -97,7 +107,18 @@ fn test_oracle_zero_price_zero_floor() {
     client.register_oracle(&Vec::new(&env), &pair, &oracle);
 
     let wallet = Address::generate(&env);
-    client.submit_score(&Vec::new(&env), &wallet, &pair, &50, &false, &false, &START_TS, &80, &1, &None);
+    client.submit_score(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &50,
+        &false,
+        &false,
+        &START_TS,
+        &80,
+        &1,
+        &None,
+    );
 
     let eff = client.get_effective_score(&wallet, &pair);
     assert_eq!(eff.confidence_floor, 0);
@@ -113,7 +134,18 @@ fn test_oracle_high_price_raises_floor() {
     client.register_oracle(&Vec::new(&env), &pair, &oracle);
 
     let wallet = Address::generate(&env);
-    client.submit_score(&Vec::new(&env), &wallet, &pair, &40, &false, &false, &START_TS, &90, &1, &None);
+    client.submit_score(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &40,
+        &false,
+        &false,
+        &START_TS,
+        &90,
+        &1,
+        &None,
+    );
 
     let eff = client.get_effective_score(&wallet, &pair);
     assert_eq!(eff.confidence_floor, 50);
@@ -131,7 +163,18 @@ fn test_oracle_moderate_price_proportional_floor() {
     client.register_oracle(&Vec::new(&env), &pair, &oracle);
 
     let wallet = Address::generate(&env);
-    client.submit_score(&Vec::new(&env), &wallet, &pair, &60, &false, &false, &START_TS, &85, &1, &None);
+    client.submit_score(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &60,
+        &false,
+        &false,
+        &START_TS,
+        &85,
+        &1,
+        &None,
+    );
 
     let eff = client.get_effective_score(&wallet, &pair);
     assert_eq!(eff.confidence_floor, 10);

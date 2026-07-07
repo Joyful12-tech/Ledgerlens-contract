@@ -61,7 +61,8 @@ fn test_same_ledger_log_mode_allows_submission_and_emits_event() {
     let flash_topic = Symbol::new(&env, "flash_sub");
     let found = events.iter().any(|(_, topics, _)| {
         let topics: soroban_sdk::Vec<soroban_sdk::Val> =
-            soroban_sdk::Vec::try_from_val(&env, &topics).unwrap_or_else(|_| soroban_sdk::Vec::new(&env));
+            soroban_sdk::Vec::try_from_val(&env, &topics)
+                .unwrap_or_else(|_| soroban_sdk::Vec::new(&env));
         !topics.is_empty()
             && topics
                 .get(0)
@@ -96,7 +97,8 @@ fn test_cross_ledger_no_event() {
     let flash_topic = Symbol::new(&env, "flash_sub");
     let found = events.iter().any(|(_, topics, _)| {
         let topics: soroban_sdk::Vec<soroban_sdk::Val> =
-            soroban_sdk::Vec::try_from_val(&env, &topics).unwrap_or_else(|_| soroban_sdk::Vec::new(&env));
+            soroban_sdk::Vec::try_from_val(&env, &topics)
+                .unwrap_or_else(|_| soroban_sdk::Vec::new(&env));
         !topics.is_empty()
             && topics
                 .get(0)

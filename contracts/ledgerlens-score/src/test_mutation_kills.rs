@@ -337,12 +337,7 @@ fn test_score_floor_kill_comparison_boundary() {
     let (env, client, admin, _service) = initialized();
 
     // Set floor policy: high_water_mark=80, floor_value=20
-    client.set_score_floor_policy(
-        &Vec::from_array(&env, [admin.clone()]),
-        &true,
-        &80,
-        &20,
-    );
+    client.set_score_floor_policy(&Vec::from_array(&env, [admin.clone()]), &true, &80, &20);
 
     let wallet = Address::generate(&env);
     let asset_pair = symbol_short!("XLM_USDC");

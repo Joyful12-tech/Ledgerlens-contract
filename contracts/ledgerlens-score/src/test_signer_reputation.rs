@@ -7,7 +7,9 @@ use soroban_sdk::{
     Address, Bytes, BytesN, Env, Symbol, Vec,
 };
 
-use crate::{LedgerLensScoreContract, LedgerLensScoreContractClient, ModelSubmission, ScoreAttestation};
+use crate::{
+    LedgerLensScoreContract, LedgerLensScoreContractClient, ModelSubmission, ScoreAttestation,
+};
 
 const START_TS: u64 = 1_700_000_000;
 
@@ -61,8 +63,17 @@ fn make_submission(
 ) -> ModelSubmission {
     let digest = env.as_contract(&client.address, || {
         LedgerLensScoreContract::compute_commitment(
-            env, wallet, pair, score, false, false, ts, 80, model_version,
-            &BytesN::from_array(env, &[0u8; 32]), crate::constants::CONTRACT_VERSION,
+            env,
+            wallet,
+            pair,
+            score,
+            false,
+            false,
+            ts,
+            80,
+            model_version,
+            &BytesN::from_array(env, &[0u8; 32]),
+            crate::constants::CONTRACT_VERSION,
         )
         .unwrap()
         .to_bytes()
@@ -155,9 +166,39 @@ fn test_accuracy_converges_after_deviations() {
         let ts = START_TS + round * 4000;
         env.ledger().with_mut(|l| l.timestamp = ts);
 
-        let s_anchor = make_submission(&env, &client, &key, &anchor, &wallet, &pair, anchor_scores[round as usize], ts, 1);
-        let s_acc = make_submission(&env, &client, &key, &accurate, &wallet, &pair, accurate_scores[round as usize], ts, 2);
-        let s_noisy = make_submission(&env, &client, &key, &noisy, &wallet, &pair, noisy_scores[round as usize], ts, 3);
+        let s_anchor = make_submission(
+            &env,
+            &client,
+            &key,
+            &anchor,
+            &wallet,
+            &pair,
+            anchor_scores[round as usize],
+            ts,
+            1,
+        );
+        let s_acc = make_submission(
+            &env,
+            &client,
+            &key,
+            &accurate,
+            &wallet,
+            &pair,
+            accurate_scores[round as usize],
+            ts,
+            2,
+        );
+        let s_noisy = make_submission(
+            &env,
+            &client,
+            &key,
+            &noisy,
+            &wallet,
+            &pair,
+            noisy_scores[round as usize],
+            ts,
+            3,
+        );
 
         let mut subs = Vec::new(&env);
         subs.push_back(s_anchor);

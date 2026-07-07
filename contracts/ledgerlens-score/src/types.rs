@@ -59,7 +59,9 @@ impl MaybeRiskScore {
             MaybeRiskScore::None => panic!("called unwrap on None"),
         }
     }
-    pub fn is_none(&self) -> bool { matches!(self, MaybeRiskScore::None) }
+    pub fn is_none(&self) -> bool {
+        matches!(self, MaybeRiskScore::None)
+    }
 }
 
 /// Per-entry result returned by `get_scores_batch`.
@@ -642,11 +644,6 @@ pub enum DataKeyD {
     GovernanceChainHead,
     ParamChangeDelay,
 }
-
-
-
-
-
 
 #[contracttype]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

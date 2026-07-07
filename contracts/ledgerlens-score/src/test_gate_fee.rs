@@ -35,8 +35,7 @@ fn setup_with_token(initial_balance: i128) -> Setup<'static> {
     client.set_fee_token(&token);
 
     // SAFETY: env is moved into Setup and outlives client.
-    let client: LedgerLensScoreContractClient<'static> =
-        unsafe { core::mem::transmute(client) };
+    let client: LedgerLensScoreContractClient<'static> = unsafe { core::mem::transmute(client) };
     Setup { env, client, token }
 }
 
@@ -49,8 +48,7 @@ fn setup_no_token() -> Setup<'static> {
     let service = Address::generate(&env);
     client.initialize(&admin, &service);
     let token = Address::generate(&env);
-    let client: LedgerLensScoreContractClient<'static> =
-        unsafe { core::mem::transmute(client) };
+    let client: LedgerLensScoreContractClient<'static> = unsafe { core::mem::transmute(client) };
     Setup { env, client, token }
 }
 
@@ -62,10 +60,7 @@ fn set_gate_query_fee_requires_init() {
     env.mock_all_auths();
     let contract = env.register_contract(None, LedgerLensScoreContract);
     let client = LedgerLensScoreContractClient::new(&env, &contract);
-    assert_eq!(
-        client.try_set_gate_query_fee(&100),
-        Err(Ok(Error::NotInitialized))
-    );
+    assert_eq!(client.try_set_gate_query_fee(&100), Err(Ok(Error::NotInitialized)));
 }
 
 #[test]
@@ -106,19 +101,18 @@ fn fee_charged_and_accumulated() {
     let pair = symbol_short!("XLM_USDC");
     StellarAssetClient::new(&s.env, &s.token).mint(&wallet, &1_000);
 
-    s.client
-        .submit_score(
-            &Vec::new(&s.env),
-            &wallet,
-            &pair,
-            &30,
-            &false,
-            &false,
-            &1,
-            &90,
-            &1,
-            &None,
-        );
+    s.client.submit_score(
+        &Vec::new(&s.env),
+        &wallet,
+        &pair,
+        &30,
+        &false,
+        &false,
+        &1,
+        &90,
+        &1,
+        &None,
+    );
 
     let result = s.client.query_risk_gate(&wallet, &pair, &75);
     assert!(result);
@@ -135,19 +129,18 @@ fn fee_accumulates_across_multiple_calls() {
     let pair = symbol_short!("XLM_USDC");
     StellarAssetClient::new(&s.env, &s.token).mint(&wallet, &10_000);
 
-    s.client
-        .submit_score(
-            &Vec::new(&s.env),
-            &wallet,
-            &pair,
-            &30,
-            &false,
-            &false,
-            &1,
-            &90,
-            &1,
-            &None,
-        );
+    s.client.submit_score(
+        &Vec::new(&s.env),
+        &wallet,
+        &pair,
+        &30,
+        &false,
+        &false,
+        &1,
+        &90,
+        &1,
+        &None,
+    );
 
     s.client.query_risk_gate(&wallet, &pair, &75);
     s.client.query_risk_gate(&wallet, &pair, &75);

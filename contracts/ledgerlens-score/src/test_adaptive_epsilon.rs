@@ -32,18 +32,7 @@ fn submit_at(
     ts: u64,
 ) {
     env.ledger().with_mut(|l| l.timestamp = ts);
-    client.submit_score(
-        &Vec::new(env),
-        wallet,
-        pair,
-        &score,
-        &false,
-        &false,
-        &ts,
-        &80,
-        &1,
-        &None,
-    );
+    client.submit_score(&Vec::new(env), wallet, pair, &score, &false, &false, &ts, &80, &1, &None);
 }
 
 // ── Disabled by default ──────────────────────────────────────────────────────

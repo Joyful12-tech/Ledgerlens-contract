@@ -40,11 +40,26 @@ fn pubkey_bytes(env: &Env, key: &SigningKey) -> Bytes {
     Bytes::from_slice(env, pt.as_bytes())
 }
 
-fn sign(env: &Env, contract_id: &Address, key: &SigningKey, wallet: &Address, pair: &Symbol) -> ScoreAttestation {
+fn sign(
+    env: &Env,
+    contract_id: &Address,
+    key: &SigningKey,
+    wallet: &Address,
+    pair: &Symbol,
+) -> ScoreAttestation {
     let digest = env.as_contract(contract_id, || {
         LedgerLensScoreContract::compute_commitment(
-            env, wallet, pair, 50, false, false, START_TS, 90, 1,
-            &BytesN::from_array(env, &[0u8; 32]), crate::constants::CONTRACT_VERSION,
+            env,
+            wallet,
+            pair,
+            50,
+            false,
+            false,
+            START_TS,
+            90,
+            1,
+            &BytesN::from_array(env, &[0u8; 32]),
+            crate::constants::CONTRACT_VERSION,
         )
         .unwrap()
         .to_bytes()

@@ -21,7 +21,11 @@ fn setup<'a>() -> (Env, LedgerLensScoreContractClient<'a>) {
     (env, client)
 }
 
-fn submit(client: &LedgerLensScoreContractClient, env: &Env, wallet: &Address) -> Result<(), Error> {
+fn submit(
+    client: &LedgerLensScoreContractClient,
+    env: &Env,
+    wallet: &Address,
+) -> Result<(), Error> {
     match client.try_submit_score(
         &Vec::new(env),
         wallet,

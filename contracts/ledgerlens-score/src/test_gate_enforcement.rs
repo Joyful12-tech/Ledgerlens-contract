@@ -1,10 +1,6 @@
 //! Tests for #302: Strict gate enforcement mode.
 
-use soroban_sdk::{
-    symbol_short,
-    testutils::Address as _,
-    Address, Env, Vec,
-};
+use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env, Vec};
 
 use crate::{LedgerLensScoreContract, LedgerLensScoreContractClient};
 

@@ -18,15 +18,18 @@ fn setup() -> Setup<'static> {
     let admin = Address::generate(&env);
     let service = Address::generate(&env);
     client.initialize(&admin, &service);
-    let client: LedgerLensScoreContractClient<'static> =
-        unsafe { core::mem::transmute(client) };
+    let client: LedgerLensScoreContractClient<'static> = unsafe { core::mem::transmute(client) };
     Setup { env, client }
 }
 
-fn submit(env: &Env, client: &LedgerLensScoreContractClient, wallet: &Address, pair: Symbol, score: u32) {
-    client
-        .submit_score(&Vec::new(env), wallet, &pair, &score, &false, &false, &1, &90, &1, &None)
-        ;
+fn submit(
+    env: &Env,
+    client: &LedgerLensScoreContractClient,
+    wallet: &Address,
+    pair: Symbol,
+    score: u32,
+) {
+    client.submit_score(&Vec::new(env), wallet, &pair, &score, &false, &false, &1, &90, &1, &None);
 }
 
 // ── InsufficientPairData errors ───────────────────────────────────────────────
@@ -35,10 +38,7 @@ fn submit(env: &Env, client: &LedgerLensScoreContractClient, wallet: &Address, p
 fn var_fails_no_pairs() {
     let s = setup();
     let wallet = Address::generate(&s.env);
-    assert_eq!(
-        s.client.try_get_portfolio_var(&wallet, &95),
-        Err(Ok(Error::InsufficientPairData))
-    );
+    assert_eq!(s.client.try_get_portfolio_var(&wallet, &95), Err(Ok(Error::InsufficientPairData)));
 }
 
 #[test]
@@ -46,10 +46,7 @@ fn var_fails_one_pair() {
     let s = setup();
     let wallet = Address::generate(&s.env);
     submit(&s.env, &s.client, &wallet, symbol_short!("XLM_USDC"), 50);
-    assert_eq!(
-        s.client.try_get_portfolio_var(&wallet, &95),
-        Err(Ok(Error::InsufficientPairData))
-    );
+    assert_eq!(s.client.try_get_portfolio_var(&wallet, &95), Err(Ok(Error::InsufficientPairData)));
 }
 
 // ── Two uncorrelated pairs ────────────────────────────────────────────────────
@@ -88,9 +85,7 @@ fn var_perfect_correlation_higher_than_uncorrelated() {
 
     let var_uncorr = s.client.get_portfolio_var(&wallet, &95);
 
-    s.client
-        .set_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC"), &10_000)
-        ;
+    s.client.set_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC"), &10_000);
     let var_corr = s.client.get_portfolio_var(&wallet, &95);
 
     assert!(var_corr >= var_uncorr, "corr ({var_corr}) >= uncorr ({var_uncorr})");
@@ -107,9 +102,7 @@ fn var_negative_correlation_lowers_var() {
 
     let var_uncorr = s.client.get_portfolio_var(&wallet, &95);
 
-    s.client
-        .set_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC"), &-5_000)
-        ;
+    s.client.set_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC"), &-5_000);
     let var_neg = s.client.get_portfolio_var(&wallet, &95);
 
     assert!(var_neg <= var_uncorr, "neg ({var_neg}) <= uncorr ({var_uncorr})");
@@ -133,9 +126,7 @@ fn var_three_pairs_in_range() {
 #[test]
 fn pair_correlation_round_trip_and_symmetric() {
     let s = setup();
-    s.client
-        .set_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC"), &7_500)
-        ;
+    s.client.set_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC"), &7_500);
 
     assert_eq!(
         s.client.get_pair_correlation(&symbol_short!("XLM_USDC"), &symbol_short!("XLM_BTC")),

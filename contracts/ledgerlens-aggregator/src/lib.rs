@@ -6,8 +6,10 @@ extern crate std;
 #[cfg(test)]
 mod test;
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, vec, Address, Env, Symbol, Vec};
-use ledgerlens_score::{RiskScore, AggregateRiskScore, Error as ScoreError};
+use ledgerlens_score::{AggregateRiskScore, Error as ScoreError, RiskScore};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, vec, Address, Env, Symbol, Vec,
+};
 
 pub const MAX_SHARDS: usize = 10;
 
@@ -38,7 +40,7 @@ impl LedgerLensAggregator {
     pub fn get_decay_rate(_env: Env) -> (u64, u64) {
         // These values should match your internal decay logic
         // Adjust if your decay formula changes
-        const DECAY_NUMERATOR: u64 = 999;     // e.g. for 0.999 decay per period
+        const DECAY_NUMERATOR: u64 = 999; // e.g. for 0.999 decay per period
         const DECAY_DENOMINATOR: u64 = 1000;
 
         (DECAY_NUMERATOR, DECAY_DENOMINATOR)
@@ -54,7 +56,7 @@ impl LedgerLensAggregator {
     /// ```
     pub fn get_consensus_threshold_k(_env: Env) -> u32 {
         // Adjust this value based on your actual consensus parameters
-        const CONSENSUS_THRESHOLD_K: u32 = 5;   // Minimum agreeing models required
+        const CONSENSUS_THRESHOLD_K: u32 = 5; // Minimum agreeing models required
 
         CONSENSUS_THRESHOLD_K
     }
@@ -76,13 +78,15 @@ impl LedgerLensAggregator {
     }
 
     pub fn add_shard(env: Env, shard: Address) -> Result<(), ScoreError> {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).ok_or(ScoreError::NotInitialized)?;
+        let admin: Address =
+            env.storage().instance().get(&DataKey::Admin).ok_or(ScoreError::NotInitialized)?;
         admin.require_auth();
         // Prevent self-reference
         if env.current_contract_address() == shard {
             return Err(ScoreError::InvalidAttestation); // reuse an error for self-ref guard
         }
-        let mut shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+        let mut shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         // Check duplicate
         for i in 0..shards.len() {
             if shards.get(i).unwrap() == shard {
@@ -98,9 +102,11 @@ impl LedgerLensAggregator {
     }
 
     pub fn remove_shard(env: Env, shard: Address) -> Result<(), ScoreError> {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).ok_or(ScoreError::NotInitialized)?;
+        let admin: Address =
+            env.storage().instance().get(&DataKey::Admin).ok_or(ScoreError::NotInitialized)?;
         admin.require_auth();
-        let shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         let mut found = false;
         let mut out: Vec<Address> = Vec::new(&env);
         for i in 0..shards.len() {
@@ -122,8 +128,14 @@ impl LedgerLensAggregator {
         env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env))
     }
 
-    pub fn query_risk_gate(env: Env, wallet: Address, asset_pair: Symbol, gate_threshold: u32) -> bool {
-        let shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+    pub fn query_risk_gate(
+        env: Env,
+        wallet: Address,
+        asset_pair: Symbol,
+        gate_threshold: u32,
+    ) -> bool {
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         if shards.is_empty() {
             return false;
         }
@@ -142,8 +154,13 @@ impl LedgerLensAggregator {
         true
     }
 
-    pub fn get_score(env: Env, wallet: Address, asset_pair: Symbol) -> Result<RiskScore, ScoreError> {
-        let shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+    pub fn get_score(
+        env: Env,
+        wallet: Address,
+        asset_pair: Symbol,
+    ) -> Result<RiskScore, ScoreError> {
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         let mut best: Option<RiskScore> = None;
         for i in 0..shards.len() {
             let shard = shards.get(i).unwrap();
@@ -162,8 +179,12 @@ impl LedgerLensAggregator {
         best.ok_or(ScoreError::ScoreNotFound)
     }
 
-    pub fn get_aggregate_score(env: Env, wallet: Address) -> Result<AggregateRiskScore, ScoreError> {
-        let shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+    pub fn get_aggregate_score(
+        env: Env,
+        wallet: Address,
+    ) -> Result<AggregateRiskScore, ScoreError> {
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         let mut best: Option<AggregateRiskScore> = None;
         for i in 0..shards.len() {
             let shard = shards.get(i).unwrap();
@@ -183,7 +204,13 @@ impl LedgerLensAggregator {
     }
 
     pub fn supports_interface(env: Env, capability: Symbol) -> bool {
-        let caps = vec![&env, symbol_short!("score"), symbol_short!("gate"), symbol_short!("aggr"), symbol_short!("federated")];
+        let caps = vec![
+            &env,
+            symbol_short!("score"),
+            symbol_short!("gate"),
+            symbol_short!("aggr"),
+            symbol_short!("federated"),
+        ];
         for i in 0..caps.len() {
             if caps.get(i).unwrap() == capability {
                 return true;
@@ -192,8 +219,13 @@ impl LedgerLensAggregator {
         false
     }
 
-    pub fn get_score_across_shards(env: Env, wallet: Address, asset_pair: Symbol) -> Vec<(Address, Option<RiskScore>)> {
-        let shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+    pub fn get_score_across_shards(
+        env: Env,
+        wallet: Address,
+        asset_pair: Symbol,
+    ) -> Vec<(Address, Option<RiskScore>)> {
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         let mut out: Vec<(Address, Option<RiskScore>)> = Vec::new(&env);
         for i in 0..shards.len() {
             let shard = shards.get(i).unwrap();
@@ -209,12 +241,9 @@ impl LedgerLensAggregator {
     /// Queries the contagion depth across all shards, returning the maximum depth found.
     ///
     /// Returns the highest counterparty count for the wallet/pair across all registered shards.
-    pub fn contagion_depth_across_shards(
-        env: Env,
-        wallet: Address,
-        asset_pair: Symbol,
-    ) -> u32 {
-        let shards: Vec<Address> = env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
+    pub fn contagion_depth_across_shards(env: Env, wallet: Address, asset_pair: Symbol) -> u32 {
+        let shards: Vec<Address> =
+            env.storage().instance().get(&DataKey::Shards).unwrap_or_else(|| Vec::new(&env));
         let mut max_depth: u32 = 0;
         for i in 0..shards.len() {
             let shard = shards.get(i).unwrap();

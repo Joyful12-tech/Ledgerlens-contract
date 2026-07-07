@@ -1,9 +1,6 @@
 //! Tests for #299: Merkle governance audit chain.
 
-use soroban_sdk::{
-    testutils::Address as _,
-    Address, BytesN, Env, Vec,
-};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, Vec};
 
 use crate::{LedgerLensScoreContract, LedgerLensScoreContractClient};
 

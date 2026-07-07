@@ -64,12 +64,7 @@ const NUM_PAIRS: u32 = 4;
 const NUM_WALLETS: u32 = 6;
 
 fn make_pairs(env: &Env) -> [Symbol; NUM_PAIRS as usize] {
-    [
-        Symbol::new(env, "PA"),
-        Symbol::new(env, "PB"),
-        Symbol::new(env, "PC"),
-        Symbol::new(env, "PD"),
-    ]
+    [Symbol::new(env, "PA"), Symbol::new(env, "PB"), Symbol::new(env, "PC"), Symbol::new(env, "PD")]
 }
 
 fn make_wallets(env: &Env) -> Vec<Address> {
@@ -163,14 +158,19 @@ fn check_invariants(
             if !oracle.ever_submitted[wi][pi] {
                 assert!(
                     stored.is_none(),
-                    "seq={seq} op={op}: phantom score for wi={wi} pi={pi}: {:?}", stored
+                    "seq={seq} op={op}: phantom score for wi={wi} pi={pi}: {:?}",
+                    stored
                 );
             }
 
             // I2: stored score values are in valid ranges.
             if let Some(ref s) = stored {
                 assert!(s.score <= 100, "seq={seq} op={op}: score {} > 100", s.score);
-                assert!(s.confidence <= 100, "seq={seq} op={op}: confidence {} > 100", s.confidence);
+                assert!(
+                    s.confidence <= 100,
+                    "seq={seq} op={op}: confidence {} > 100",
+                    s.confidence
+                );
                 assert!(s.timestamp > 0, "seq={seq} op={op}: timestamp == 0");
             }
 
@@ -188,7 +188,8 @@ fn check_invariants(
                         s.timestamp <= oracle.pause_ts[pi] || oracle.pause_ts[pi] == 0,
                         "seq={seq} op={op}: score timestamp {} > pause_ts {} \
                          for paused pair wi={wi} pi={pi}",
-                        s.timestamp, oracle.pause_ts[pi]
+                        s.timestamp,
+                        oracle.pause_ts[pi]
                     );
                 }
             }
@@ -240,8 +241,15 @@ fn chaos_pause_unpause_submit_1000_sequences() {
                     let ts = now.max(1);
                     let res = client.try_submit_score(
                         &Vec::new(&env),
-                        &wallet, &pairs[pi],
-                        &score, &false, &false, &ts, &80, &1, &None,
+                        &wallet,
+                        &pairs[pi],
+                        &score,
+                        &false,
+                        &false,
+                        &ts,
+                        &80,
+                        &1,
+                        &None,
                     );
                     match res {
                         Ok(Ok(())) => {
@@ -250,8 +258,10 @@ fn chaos_pause_unpause_submit_1000_sequences() {
                         }
                         Ok(Err(_)) => panic!("seq={seq} op={op}: conversion error on submit"),
                         Err(Ok(Error::PairPaused)) => {
-                            assert!(oracle.paused[pi],
-                                "seq={seq} op={op}: PairPaused but oracle says not paused pi={pi}");
+                            assert!(
+                                oracle.paused[pi],
+                                "seq={seq} op={op}: PairPaused but oracle says not paused pi={pi}"
+                            );
                         }
                         Err(Ok(Error::RateLimitExceeded)) => {
                             // Rate limit is expected when cooldown has not elapsed
@@ -328,9 +338,16 @@ fn chaos_paused_pair_never_accepts_score() {
     for wi in 0..NUM_WALLETS {
         let wallet = wallets.get(wi).unwrap();
         client.submit_score(
-            &Vec::new(&env), &wallet, &pair,
-            &(wi * 10), &false, &false,
-            &(START_TS + wi as u64), &80, &1, &None,
+            &Vec::new(&env),
+            &wallet,
+            &pair,
+            &(wi * 10),
+            &false,
+            &false,
+            &(START_TS + wi as u64),
+            &80,
+            &1,
+            &None,
         );
     }
 
@@ -345,16 +362,25 @@ fn chaos_paused_pair_never_accepts_score() {
         let wallet = wallets.get(wi).unwrap();
         let score = rng.range(0, 100) as u32;
         let res = client.try_submit_score(
-            &Vec::new(&env), &wallet, &pair,
-            &score, &false, &false,
-            &(env.ledger().timestamp()), &80, &1, &None,
+            &Vec::new(&env),
+            &wallet,
+            &pair,
+            &score,
+            &false,
+            &false,
+            &(env.ledger().timestamp()),
+            &80,
+            &1,
+            &None,
         );
         assert_eq!(res, Err(Ok(Error::PairPaused)));
         // Score must remain the pre-pause value.
         let stored = client.get_score(&wallet, &pair);
         assert_eq!(stored.score, wi * 10);
-        assert!(stored.timestamp <= baseline_ts + wi as u64 + 1,
-            "score timestamp advanced after pause for wi={wi}");
+        assert!(
+            stored.timestamp <= baseline_ts + wi as u64 + 1,
+            "score timestamp advanced after pause for wi={wi}"
+        );
     }
 }
 
@@ -367,14 +393,30 @@ fn chaos_unpause_restores_submission() {
 
     // Submit, pause, attempt (fail), unpause, submit (succeed).
     client.submit_score(
-        &Vec::new(&env), &wallet, &pair,
-        &30, &false, &false, &START_TS, &80, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &30,
+        &false,
+        &false,
+        &START_TS,
+        &80,
+        &1,
+        &None,
     );
     client.set_pair_paused(&pair, &true);
     env.ledger().with_mut(|l| l.timestamp = START_TS + 3_601);
     let res = client.try_submit_score(
-        &Vec::new(&env), &wallet, &pair,
-        &40, &false, &false, &(START_TS + 3_601), &80, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &40,
+        &false,
+        &false,
+        &(START_TS + 3_601),
+        &80,
+        &1,
+        &None,
     );
     assert_eq!(res, Err(Ok(Error::PairPaused)));
     assert_eq!(client.get_score(&wallet, &pair).score, 30);
@@ -382,8 +424,16 @@ fn chaos_unpause_restores_submission() {
     client.set_pair_paused(&pair, &false);
     env.ledger().with_mut(|l| l.timestamp = START_TS + 7_202);
     client.submit_score(
-        &Vec::new(&env), &wallet, &pair,
-        &45, &false, &false, &(START_TS + 7_202), &80, &1, &None,
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &45,
+        &false,
+        &false,
+        &(START_TS + 7_202),
+        &80,
+        &1,
+        &None,
     );
     assert_eq!(client.get_score(&wallet, &pair).score, 45);
 }

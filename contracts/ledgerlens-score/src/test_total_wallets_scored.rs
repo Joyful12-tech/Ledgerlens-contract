@@ -218,7 +218,7 @@ fn test_total_wallets_scored_batch_existing_combinations_not_double_counted() {
     let fresh_wallet = Address::generate(&env);
     let mut batch: Vec<ScoreSubmission> = Vec::new(&env);
     batch.push_back(ScoreSubmission {
-        wallet: wallet.clone(),   // rate-limited: rejected
+        wallet: wallet.clone(), // rate-limited: rejected
         asset_pair: pair.clone(),
         score: 60,
         benford_flag: false,

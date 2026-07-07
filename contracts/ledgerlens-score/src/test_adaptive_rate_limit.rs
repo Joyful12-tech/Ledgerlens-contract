@@ -14,8 +14,7 @@ use soroban_sdk::{
 };
 
 use crate::{
-    constants::DEFAULT_COOLDOWN_SECS, Error, LedgerLensScoreContract,
-    LedgerLensScoreContractClient,
+    constants::DEFAULT_COOLDOWN_SECS, Error, LedgerLensScoreContract, LedgerLensScoreContractClient,
 };
 
 const START_TS: u64 = 1_700_000_000;
