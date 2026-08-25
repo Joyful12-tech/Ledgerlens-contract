@@ -1,3 +1,6 @@
+// Required for f64 methods (powf, powi, ln, round) under wasm32/no_std.
+use num_traits::float::FloatCore;
+
 use crate::constants::{
     BAND_STATE_TTL_EXTEND_TO, BAND_STATE_TTL_THRESHOLD, DEFAULT_CONSENSUS_EPSILON,
     DEFAULT_CONSENSUS_THRESHOLD_K, DEFAULT_COOLDOWN_SECS, DEFAULT_JUMP_THRESHOLD,

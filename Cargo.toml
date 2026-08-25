@@ -9,6 +9,12 @@ members = [
     "tests/composability",
 ]
 
+# Force the minimum safe version of crossbeam-epoch to resolve
+# RUSTSEC-2026-0204 (invalid pointer dereference). crossbeam-epoch is a
+# transitive dependency pulled in via rayon-core → crossbeam-deque.
+[workspace.dependencies]
+crossbeam-epoch = "0.9.20"
+
 [profile.release]
 opt-level = "z"
 overflow-checks = true
