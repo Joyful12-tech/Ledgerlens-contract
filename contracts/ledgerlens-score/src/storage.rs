@@ -1,6 +1,7 @@
 // Required for f64 methods (powf, powi, ln, round) under wasm32/no_std.
+// num_traits::Float provides all of these via the libm-backed implementation.
 #[cfg(target_arch = "wasm32")]
-use num_traits::float::FloatCore;
+use num_traits::Float;
 
 use crate::constants::{
     BAND_STATE_TTL_EXTEND_TO, BAND_STATE_TTL_THRESHOLD, DEFAULT_CONSENSUS_EPSILON,
