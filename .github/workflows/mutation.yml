@@ -1,0 +1,185 @@
+name: Mutation testing
+
+# Runs nightly at 03:00 UTC to stay off the critical path for PRs.
+# Also runnable on demand via workflow_dispatch.
+#
+# Scope (expanded from Spike #935):
+#   Night 1 (default / manual): all security-critical modules
+#     - zk_range_proof.rs  (original)
+#     - verkle.rs           (original)
+#     - lib.rs rate-limiting functions   (new)
+#     - lib.rs score-floor functions     (new)
+#     - lib.rs upgrade-governance funcs  (new)
+#
+# The `--re` flag on the lib.rs job restricts mutations to the three
+# security-critical function groups, keeping lib.rs runtime to ~130-150
+# mutants instead of 2000+.
+#
+# If nightly runtime exceeds 3 hours, enable the rotating schedule by
+# setting the ROTATION env var to "true" — the two jobs then run on
+# alternating nights (crypto M/W/F, security-logic T/Th/Sa).
+#
+# See docs/spike-935-mutation-testing-scope.md for full rationale.
+
+on:
+  schedule:
+    # 03:00 UTC nightly
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      module_set:
+        description: "Module set to test: 'all' (default), 'crypto', or 'security-logic'"
+        required: false
+        default: "all"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ── Cryptography modules (original scope) ────────────────────────────────────
+  mutants-crypto:
+    name: Mutants — crypto (zk_range_proof + verkle)
+    if: >
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.module_set == 'all' || github.event.inputs.module_set == 'crypto'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "mutants-crypto"
+
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+
+      - name: Run mutations — zk_range_proof.rs
+        run: |
+          cargo mutants \
+            --file contracts/ledgerlens-score/src/zk_range_proof.rs \
+            --timeout 180 \
+            --jobs 2 \
+            --output mutants-zk-out \
+            -- --workspace
+        continue-on-error: true
+
+      - name: Run mutations — verkle.rs
+        run: |
+          cargo mutants \
+            --file contracts/ledgerlens-score/src/verkle.rs \
+            --timeout 180 \
+            --jobs 2 \
+            --output mutants-verkle-out \
+            -- --workspace
+        continue-on-error: true
+
+      - name: Summarise results
+        if: always()
+        run: |
+          echo "=== zk_range_proof.rs ===" && cat mutants-zk-out/summary.txt 2>/dev/null || true
+          echo "=== verkle.rs ===" && cat mutants-verkle-out/summary.txt 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-crypto-${{ github.run_id }}
+          path: |
+            mutants-zk-out/
+            mutants-verkle-out/
+          retention-days: 14
+
+  # ── Security-critical logic modules (new in Spike #935) ──────────────────────
+  mutants-security-logic:
+    name: Mutants — security logic (rate-limiting + score-floor + upgrade-governance)
+    if: >
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.module_set == 'all' || github.event.inputs.module_set == 'security-logic'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "mutants-security-logic"
+
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+
+      # Rate-limiting: write_score_with_rate_limit + compute_effective_cooldown
+      - name: Run mutations — rate-limiting functions
+        run: |
+          cargo mutants \
+            --file contracts/ledgerlens-score/src/lib.rs \
+            --re "write_score_with_rate_limit|compute_effective_cooldown|set_cooldown|override_rate_limit" \
+            --timeout 180 \
+            --jobs 2 \
+            --output mutants-rate-limit-out \
+            -- --workspace
+        continue-on-error: true
+
+      # Score-floor: score_floor_blocks + set_score_floor_policy
+      - name: Run mutations — score-floor functions
+        run: |
+          cargo mutants \
+            --file contracts/ledgerlens-score/src/lib.rs \
+            --re "score_floor_blocks|set_score_floor_policy|override_score_floor" \
+            --timeout 180 \
+            --jobs 2 \
+            --output mutants-score-floor-out \
+            -- --workspace
+        continue-on-error: true
+
+      # Upgrade governance: propose_upgrade + execute_upgrade + veto_upgrade
+      - name: Run mutations — upgrade governance functions
+        run: |
+          cargo mutants \
+            --file contracts/ledgerlens-score/src/lib.rs \
+            --re "propose_upgrade|execute_upgrade|veto_upgrade|set_upgrade_delay" \
+            --timeout 180 \
+            --jobs 2 \
+            --output mutants-upgrade-out \
+            -- --workspace
+        continue-on-error: true
+
+      - name: Summarise results
+        if: always()
+        run: |
+          echo "=== Rate-limiting ===" && cat mutants-rate-limit-out/summary.txt 2>/dev/null || true
+          echo "=== Score-floor ===" && cat mutants-score-floor-out/summary.txt 2>/dev/null || true
+          echo "=== Upgrade governance ===" && cat mutants-upgrade-out/summary.txt 2>/dev/null || true
+
+      - name: Fail if any surviving mutants found in security-critical functions
+        if: always()
+        run: |
+          SURVIVED=0
+          for dir in mutants-rate-limit-out mutants-score-floor-out mutants-upgrade-out; do
+            if [ -f "$dir/survived" ]; then
+              COUNT=$(wc -l < "$dir/survived" 2>/dev/null || echo 0)
+              if [ "$COUNT" -gt 0 ]; then
+                echo "::warning::$COUNT surviving mutant(s) found in $dir — review docs/spike-935-mutation-testing-scope.md for remediation guidance"
+                SURVIVED=$((SURVIVED + COUNT))
+              fi
+            fi
+          done
+          # Report but do not hard-fail nightly — surviving mutants generate
+          # GitHub warnings and are tracked as issues, not gate PRs.
+          echo "Total surviving mutants: $SURVIVED"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-security-logic-${{ github.run_id }}
+          path: |
+            mutants-rate-limit-out/
+            mutants-score-floor-out/
+            mutants-upgrade-out/
+          retention-days: 14

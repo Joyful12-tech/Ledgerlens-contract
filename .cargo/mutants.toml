@@ -1,0 +1,45 @@
+# cargo-mutants configuration — LedgerLens contract
+#
+# Scope: security-critical modules only.
+#
+# Original scope (pre-spike-#935): zk_range_proof.rs + verkle.rs only.
+#
+# Expanded scope (spike #935): adds the three security-critical subsystems
+# identified in the README's "Security Features" section:
+#   - Rate-limiting / cooldown enforcement  (write_score_with_rate_limit)
+#   - Score submission floor                (score_floor_blocks)
+#   - Upgrade governance / time-lock        (propose_upgrade, execute_upgrade)
+#
+# Runtime budget: ~1.7–2.5 hours nightly on ubuntu-latest.
+# If total runtime exceeds 3 hours, switch to the rotating schedule in
+# .github/workflows/mutation.yml (two alternating module sets per night).
+#
+# See docs/spike-935-mutation-testing-scope.md for full analysis and rationale.
+
+[cargo-mutants]
+# Restrict mutations to these source files.  lib.rs mutations are further
+# narrowed by the --re flag in mutation.yml to the three target functions,
+# keeping the lib.rs contribution to ~130-150 mutants rather than ~2000+.
+source_files = [
+    "contracts/ledgerlens-score/src/zk_range_proof.rs",
+    "contracts/ledgerlens-score/src/verkle.rs",
+    "contracts/ledgerlens-score/src/lib.rs",
+]
+
+# Skip generated or test-only code that would inflate mutant counts without
+# adding coverage signal.
+exclude_globs = [
+    "contracts/ledgerlens-score/src/test*.rs",
+    "contracts/ledgerlens-score/src/error_coverage.rs",
+    "contracts/ledgerlens-score/src/upgrade_smoke.rs",
+    "contracts/ledgerlens-score/src/event_emission.rs",
+    "contracts/ledgerlens-score/src/events.rs",
+]
+
+# Bail out of a single mutant's test run after this many seconds.
+# The full test suite runs in ~40-90 s; 180 s gives a 2x safety margin.
+timeout = 180
+
+# Run up to N parallel test jobs to exploit multi-core runners.
+# GitHub-hosted ubuntu-latest has 2 physical / 4 logical cores.
+jobs = 2
