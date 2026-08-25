@@ -6,9 +6,7 @@
 //! (ceil(n / MAX_BATCH)) because on-chain `MAX_BATCH_SIZE` is 20.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use ledgerlens_score::{
-    LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission,
-};
+use ledgerlens_score::{LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, Symbol, Vec,
@@ -31,7 +29,12 @@ fn setup(env: &Env) -> (LedgerLensScoreContractClient<'_>, Symbol) {
     (client, asset_pair)
 }
 
-fn build_entries(env: &Env, asset_pair: &Symbol, count: u32, batch_index: u32) -> Vec<ScoreSubmission> {
+fn build_entries(
+    env: &Env,
+    asset_pair: &Symbol,
+    count: u32,
+    batch_index: u32,
+) -> Vec<ScoreSubmission> {
     let mut batch = Vec::new(env);
     for i in 0..count {
         let wallet = Address::generate(env);
@@ -69,10 +72,7 @@ fn submit_n_entries(
         env.ledger().with_mut(|l| l.timestamp += 3_601);
     }
 
-    (
-        env.budget().cpu_instruction_cost(),
-        env.budget().memory_bytes_cost(),
-    )
+    (env.budget().cpu_instruction_cost(), env.budget().memory_bytes_cost())
 }
 
 fn bench_batch_submit(c: &mut Criterion) {

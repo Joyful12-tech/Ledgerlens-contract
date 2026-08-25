@@ -1,7 +1,7 @@
 extern crate std;
 
 use crate::{
-    zk_range_proof::{Sc, SeededPrng, get_generators, compress_pt, prove_range_proof},
+    zk_range_proof::{compress_pt, get_generators, prove_range_proof, Sc, SeededPrng},
     LedgerLensScoreContract, LedgerLensScoreContractClient,
 };
 use soroban_sdk::{testutils::Address as _, Address, Bytes, BytesN, Env, Symbol, Vec};
@@ -24,10 +24,10 @@ fn test_verify_score_range_proof_success() {
     // Score = 40, Threshold = 50. Since 40 < 50, the proof should verify.
     let score = 40u32;
     let threshold = 50u32;
-    
+
     let r = Sc::from_u64(987654321);
     let (g_pt, h_pt, d) = get_generators();
-    
+
     // C = g^score * h^r
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
@@ -56,18 +56,13 @@ fn test_verify_score_range_proof_success() {
     // Blinding factor is -r
     let v_prime = threshold - 1 - score; // 9
     let r_prime = r.neg();
-    
+
     let prng = SeededPrng::new([1u8; 32]);
     let proof = prove_range_proof(&env, v_prime, r_prime, prng);
     let proof_bytes = proof.to_bytes(&env);
 
-    let result = client.verify_score_range_proof(
-        &wallet,
-        &pair,
-        &commitment,
-        &proof_bytes,
-        &threshold,
-    );
+    let result =
+        client.verify_score_range_proof(&wallet, &pair, &commitment, &proof_bytes, &threshold);
     assert!(result);
 }
 
@@ -89,10 +84,10 @@ fn test_verify_score_range_proof_invalid_threshold() {
     // Score = 60. Try to verify proof for threshold = 50 (which requires 60 < 50, invalid).
     let score = 60u32;
     let threshold = 50u32;
-    
+
     let r = Sc::from_u64(987654321);
     let (g_pt, h_pt, d) = get_generators();
-    
+
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -120,13 +115,8 @@ fn test_verify_score_range_proof_invalid_threshold() {
     let proof = prove_range_proof(&env, 9, r.neg(), prng);
     let proof_bytes = proof.to_bytes(&env);
 
-    let result = client.verify_score_range_proof(
-        &wallet,
-        &pair,
-        &commitment,
-        &proof_bytes,
-        &threshold,
-    );
+    let result =
+        client.verify_score_range_proof(&wallet, &pair, &commitment, &proof_bytes, &threshold);
     // Should fail because the commitment C' computed on-chain won't match the proof
     assert!(!result);
 }
@@ -148,10 +138,10 @@ fn test_verify_score_range_proof_tampered_commitment() {
 
     let score = 40u32;
     let threshold = 50u32;
-    
+
     let r = Sc::from_u64(987654321);
     let (g_pt, h_pt, d) = get_generators();
-    
+
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -210,10 +200,10 @@ fn test_verify_score_range_proof_tampered_proof() {
 
     let score = 40u32;
     let threshold = 50u32;
-    
+
     let r = Sc::from_u64(987654321);
     let (g_pt, h_pt, d) = get_generators();
-    
+
     let c_pt = g_pt.mul(Sc::from_u64(score as u64), d).add(h_pt.mul(r, d), d);
     let commitment = compress_pt(&env, &c_pt);
 
@@ -248,12 +238,7 @@ fn test_verify_score_range_proof_tampered_proof() {
     arr[200] ^= 1; // tamper with one byte
     let tampered_proof = Bytes::from_array(&env, &arr);
 
-    let result = client.verify_score_range_proof(
-        &wallet,
-        &pair,
-        &commitment,
-        &tampered_proof,
-        &threshold,
-    );
+    let result =
+        client.verify_score_range_proof(&wallet, &pair, &commitment, &tampered_proof, &threshold);
     assert!(!result);
 }

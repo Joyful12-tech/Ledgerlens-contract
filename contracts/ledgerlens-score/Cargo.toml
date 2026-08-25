@@ -13,6 +13,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 soroban-sdk = "21.0.0"
 subtle = { version = "2.6", default-features = false }
+# Required for f64 float methods (powf, powi, ln, round) under wasm32/no_std.
+# default-features = false selects the libm-backed implementation that is
+# compatible with the Soroban/wasm32-unknown-unknown target.
+num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }
 
 [dev-dependencies]
 soroban-sdk = { version = "21.0.0", features = ["testutils"] }

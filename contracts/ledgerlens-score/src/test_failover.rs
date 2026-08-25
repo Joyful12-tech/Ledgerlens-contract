@@ -18,13 +18,8 @@ const START_TS: u64 = 1_700_000_000;
 
 /// Set up two independent contract instances in the same `Env`.
 /// Returns `(env, primary_client, secondary_client, admin, service)`.
-fn setup_two<'a>() -> (
-    Env,
-    LedgerLensScoreContractClient<'a>,
-    LedgerLensScoreContractClient<'a>,
-    Address,
-    Address,
-) {
+fn setup_two<'a>(
+) -> (Env, LedgerLensScoreContractClient<'a>, LedgerLensScoreContractClient<'a>, Address, Address) {
     let env = Env::default();
     env.mock_all_auths();
     env.ledger().with_mut(|l| l.timestamp = START_TS);
@@ -197,8 +192,7 @@ fn test_fresh_secondary_score_passes() {
     primary.pause(&Vec::new(&env));
 
     // Advance time within the staleness window.
-    env.ledger()
-        .with_mut(|l| l.timestamp = START_TS + FAILOVER_STALENESS_WINDOW);
+    env.ledger().with_mut(|l| l.timestamp = START_TS + FAILOVER_STALENESS_WINDOW);
 
     // Score is fresh — gate passes.
     assert!(primary.query_risk_gate(&wallet, &pair, &75));

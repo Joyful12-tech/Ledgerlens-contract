@@ -89,10 +89,7 @@ fn multisig_setup_phase(lc: &Lifecycle) {
 
 /// Phase 3: Submit score with multi-sig
 fn score_submission_phase(lc: &Lifecycle) {
-    let signers = Vec::from_array(
-        &lc.env,
-        [lc.signer_a.clone(), lc.signer_b.clone()],
-    );
+    let signers = Vec::from_array(&lc.env, [lc.signer_a.clone(), lc.signer_b.clone()]);
 
     // Submit score: wallet, asset_pair, score=55, benford=false, ml=true,
     // timestamp=100_500, confidence=85, model_version=1
@@ -159,10 +156,7 @@ fn test_paused_state_blocks_submission() {
     lc.client.pause(&admin_signers);
 
     // Try to submit score while paused
-    let signers = Vec::from_array(
-        &lc.env,
-        [lc.signer_a.clone(), lc.signer_b.clone()],
-    );
+    let signers = Vec::from_array(&lc.env, [lc.signer_a.clone(), lc.signer_b.clone()]);
     let result = lc.client.try_submit_score(
         &signers,
         &lc.wallet_under_test,
@@ -249,10 +243,7 @@ fn test_score_momentum_indicator() {
     initialize_phase(&lc);
     multisig_setup_phase(&lc);
 
-    let signers = Vec::from_array(
-        &lc.env,
-        [lc.signer_a.clone(), lc.signer_b.clone()],
-    );
+    let signers = Vec::from_array(&lc.env, [lc.signer_a.clone(), lc.signer_b.clone()]);
 
     // Submit score for wallet1/pair1
     lc.client.submit_score(
@@ -324,4 +315,3 @@ fn test_multisig_threshold_enforcement() {
     // Should fail with InsufficientSigners or similar
     assert!(result.is_err());
 }
-
