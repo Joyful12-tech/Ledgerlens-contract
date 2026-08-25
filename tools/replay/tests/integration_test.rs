@@ -1,8 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{Env, Address, Vec as SVec, Symbol};
+    use ledgerlens_score::{
+        LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission,
+    };
     use soroban_sdk::testutils::Address as _;
-    use ledgerlens_score::{LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission};
+    use soroban_sdk::{Address, Env, Symbol, Vec as SVec};
 
     fn init_contract(env: &Env) -> (LedgerLensScoreContractClient<'_>, Address, Address) {
         env.mock_all_auths();
