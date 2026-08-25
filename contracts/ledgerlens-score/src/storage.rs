@@ -1,4 +1,5 @@
 // Required for f64 methods (powf, powi, ln, round) under wasm32/no_std.
+#[cfg(target_arch = "wasm32")]
 use num_traits::float::FloatCore;
 
 use crate::constants::{
