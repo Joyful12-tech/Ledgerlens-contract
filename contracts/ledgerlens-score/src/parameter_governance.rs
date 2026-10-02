@@ -56,7 +56,11 @@ fn read_u32(bytes: &Bytes, offset: u32) -> Result<u32, Error> {
 }
 
 /// Validates that `new_value` is well-formed and within bounds for `param_key`.
-pub fn validate_parameter_value(_env: &Env, param_key: &Symbol, new_value: &Bytes) -> Result<(), Error> {
+pub fn validate_parameter_value(
+    _env: &Env,
+    param_key: &Symbol,
+    new_value: &Bytes,
+) -> Result<(), Error> {
     if param_key == &param_key_cooldown() {
         let secs = read_u64(new_value)?;
         if !(constants::MIN_COOLDOWN_SECS..=constants::MAX_COOLDOWN_SECS).contains(&secs) {
@@ -82,7 +86,11 @@ pub fn validate_parameter_value(_env: &Env, param_key: &Symbol, new_value: &Byte
         }
         let max_num = constants::MAX_DECAY_LAMBDA_NUM;
         let max_den = constants::MAX_DECAY_LAMBDA_DEN;
-        if numerator.checked_mul(max_den).map(|v| v > max_num.saturating_mul(denominator)).unwrap_or(true) {
+        if numerator
+            .checked_mul(max_den)
+            .map(|v| v > max_num.saturating_mul(denominator))
+            .unwrap_or(true)
+        {
             return Err(Error::InvalidThreshold);
         }
         return Ok(());
@@ -110,7 +118,11 @@ pub fn validate_parameter_value(_env: &Env, param_key: &Symbol, new_value: &Byte
 }
 
 /// Applies a validated parameter change to instance storage.
-pub fn apply_parameter_change(env: &Env, param_key: &Symbol, new_value: &Bytes) -> Result<(), Error> {
+pub fn apply_parameter_change(
+    env: &Env,
+    param_key: &Symbol,
+    new_value: &Bytes,
+) -> Result<(), Error> {
     validate_parameter_value(env, param_key, new_value)?;
 
     if param_key == &param_key_cooldown() {

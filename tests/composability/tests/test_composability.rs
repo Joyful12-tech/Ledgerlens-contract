@@ -57,20 +57,18 @@ fn setup<'a>() -> Fixture<'a> {
 /// cooldown first so repeated submissions in the same test never collide.
 fn submit_score(fixture: &Fixture, wallet: &Address, score: u32, confidence: u32) {
     fixture.env.ledger().with_mut(|l| l.timestamp += 3_601);
-    fixture
-        .ledgerlens
-        .submit_score(
-            &Vec::new(&fixture.env),
-            wallet,
-            &symbol_short!("XLM_USDC"),
-            &score,
-            &false,
-            &false,
-            &fixture.env.ledger().timestamp(),
-            &confidence,
-            &1,
-            &None,
-        );
+    fixture.ledgerlens.submit_score(
+        &Vec::new(&fixture.env),
+        wallet,
+        &symbol_short!("XLM_USDC"),
+        &score,
+        &false,
+        &false,
+        &fixture.env.ledger().timestamp(),
+        &confidence,
+        &1,
+        &None,
+    );
 }
 
 // ── Acceptance criterion: both mock contracts compile and deploy ───────────

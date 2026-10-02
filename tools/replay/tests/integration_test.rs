@@ -1,8 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{Env, Address, Vec as SVec, Symbol};
+    use ledgerlens_score::{
+        LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission,
+    };
     use soroban_sdk::testutils::Address as _;
-    use ledgerlens_score::{LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission};
+    use soroban_sdk::{Address, Env, Symbol, Vec as SVec};
 
     fn init_contract(env: &Env) -> (LedgerLensScoreContractClient<'_>, Address, Address) {
         env.mock_all_auths();
@@ -18,10 +20,10 @@ mod tests {
     fn test_replay_single_entry_no_panic() {
         let env = Env::default();
         let (client, _admin, _service) = init_contract(&env);
-        
+
         let wallet = Address::generate(&env);
         let pair = Symbol::new(&env, "XLM_USDC");
-        
+
         let mut batch: SVec<ScoreSubmission> = SVec::new(&env);
         batch.push_back(ScoreSubmission {
             wallet: wallet.clone(),
@@ -33,11 +35,11 @@ mod tests {
             confidence: 80u32,
             model_version: 1u32,
         });
-        
+
         let result = client.submit_scores_batch(&batch);
         assert_eq!(result.accepted_count, 1);
         assert_eq!(result.rejected_count, 0);
-        
+
         let score = client.get_score(&wallet, &pair);
         assert!(score.score <= 100, "score must be in [0, 100]");
     }
@@ -46,7 +48,7 @@ mod tests {
     fn test_replay_multiple_entries_score_range() {
         let env = Env::default();
         let (client, _admin, _service) = init_contract(&env);
-        
+
         let mut batch: SVec<ScoreSubmission> = SVec::new(&env);
         for i in 0..5 {
             let wallet = Address::generate(&env);
@@ -62,11 +64,11 @@ mod tests {
                 model_version: 1u32,
             });
         }
-        
+
         let result = client.submit_scores_batch(&batch);
         assert_eq!(result.accepted_count, 5);
         assert_eq!(result.rejected_count, 0);
-        
+
         // Verify all entries were accepted and scores are in valid range
         for entry_result in result.results.iter() {
             assert!(entry_result.accepted);
@@ -79,13 +81,13 @@ mod tests {
         use soroban_sdk::testutils::Ledger as _;
         let env = Env::default();
         let (client, _admin, _service) = init_contract(&env);
-        
+
         let wallet = Address::generate(&env);
         let pair = Symbol::new(&env, "XLM_USDC");
         let ts = 1_000_000u64;
-        
+
         env.ledger().with_mut(|l| l.timestamp = ts);
-        
+
         // First submission should succeed
         let mut batch1: SVec<ScoreSubmission> = SVec::new(&env);
         batch1.push_back(ScoreSubmission {
@@ -100,9 +102,9 @@ mod tests {
         });
         let result1 = client.submit_scores_batch(&batch1);
         assert_eq!(result1.accepted_count, 1);
-        
+
         env.ledger().with_mut(|l| l.timestamp = ts + 100);
-        
+
         // Second submission with same (wallet, pair) within cooldown should be rejected
         let mut batch2: SVec<ScoreSubmission> = SVec::new(&env);
         batch2.push_back(ScoreSubmission {
@@ -124,10 +126,10 @@ mod tests {
         // Same input should produce same contract state
         let env1 = Env::default();
         let (client1, _, _) = init_contract(&env1);
-        
+
         let wallet1 = Address::generate(&env1);
         let pair1 = Symbol::new(&env1, "XLM_USDC");
-        
+
         let mut batch1: SVec<ScoreSubmission> = SVec::new(&env1);
         batch1.push_back(ScoreSubmission {
             wallet: wallet1.clone(),
@@ -139,7 +141,7 @@ mod tests {
             confidence: 95u32,
             model_version: 2u32,
         });
-        
+
         let result1 = client1.submit_scores_batch(&batch1);
         let score1 = client1.get_score(&wallet1, &pair1);
         assert_eq!(result1.accepted_count, 1);

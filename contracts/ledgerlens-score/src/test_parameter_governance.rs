@@ -6,8 +6,10 @@ use soroban_sdk::{
 };
 
 use crate::{
-    constants::{DEFAULT_COOLDOWN_SECS, DEFAULT_UPGRADE_DELAY_SECS, MAX_PENDING_PARAMETER_PROPOSALS,
-                MIN_COOLDOWN_SECS},
+    constants::{
+        DEFAULT_COOLDOWN_SECS, DEFAULT_UPGRADE_DELAY_SECS, MAX_PENDING_PARAMETER_PROPOSALS,
+        MIN_COOLDOWN_SECS,
+    },
     parameter_governance::param_key_cooldown,
     storage,
     types::ParameterProposalStatus,
@@ -103,13 +105,11 @@ fn test_execute_before_timelock_rejected() {
         &value,
     );
 
-    let result =
-        client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
+    let result = client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
     assert_eq!(result, Err(Ok(Error::ParameterProposalNotReady)));
 
     advance_to(&env, START_TS + DEFAULT_UPGRADE_DELAY_SECS - 1);
-    let result =
-        client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
+    let result = client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
     assert_eq!(result, Err(Ok(Error::ParameterProposalNotReady)));
 }
 
@@ -150,8 +150,7 @@ fn test_veto_after_half_timelock_rejected() {
     let veto_deadline = START_TS + DEFAULT_UPGRADE_DELAY_SECS / 2;
     advance_to(&env, veto_deadline + 1);
 
-    let result =
-        client.try_veto_parameter_change(&service_signers(&env, &service), &proposal_id);
+    let result = client.try_veto_parameter_change(&service_signers(&env, &service), &proposal_id);
     assert_eq!(result, Err(Ok(Error::ParameterProposalVetoPeriodEnded)));
 }
 
@@ -169,8 +168,7 @@ fn test_expired_proposal_cannot_execute() {
     let expiry = START_TS + DEFAULT_UPGRADE_DELAY_SECS * 2 + 1;
     advance_to(&env, expiry);
 
-    let result =
-        client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
+    let result = client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
     assert_eq!(result, Err(Ok(Error::ParameterProposalExpired)));
 
     env.as_contract(&client.address, || {
@@ -199,8 +197,7 @@ fn test_executed_proposal_cannot_be_reexecuted() {
     advance_to(&env, START_TS + DEFAULT_UPGRADE_DELAY_SECS);
     client.execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
 
-    let result =
-        client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
+    let result = client.try_execute_parameter_change(&admin_signers(&env, &admin), &proposal_id);
     assert_eq!(result, Err(Ok(Error::ParameterProposalAlreadyExecuted)));
 }
 

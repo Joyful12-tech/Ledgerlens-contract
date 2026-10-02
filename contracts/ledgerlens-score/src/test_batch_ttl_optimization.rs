@@ -27,7 +27,12 @@ fn setup<'a>() -> (Env, LedgerLensScoreContractClient<'a>, Symbol) {
     (env, client, asset_pair)
 }
 
-fn build_batch(env: &Env, asset_pair: &Symbol, count: u32, score_base: u32) -> Vec<ScoreSubmission> {
+fn build_batch(
+    env: &Env,
+    asset_pair: &Symbol,
+    count: u32,
+    score_base: u32,
+) -> Vec<ScoreSubmission> {
     let mut batch = Vec::new(env);
     for i in 0..count {
         let wallet = Address::generate(env);
@@ -140,17 +145,17 @@ fn test_lazy_ttl_skips_extend_when_entry_is_fresh() {
         };
         storage::set_score(&env, &wallet, &pair, &score);
 
-        let ttl_after_first = env.storage().persistent().get_ttl(&crate::types::DataKey::Score(
-            wallet.clone(),
-            pair.clone(),
-        ));
+        let ttl_after_first = env
+            .storage()
+            .persistent()
+            .get_ttl(&crate::types::DataKey::Score(wallet.clone(), pair.clone()));
 
         storage::set_score(&env, &wallet, &pair, &score);
 
-        let ttl_after_second = env.storage().persistent().get_ttl(&crate::types::DataKey::Score(
-            wallet.clone(),
-            pair.clone(),
-        ));
+        let ttl_after_second = env
+            .storage()
+            .persistent()
+            .get_ttl(&crate::types::DataKey::Score(wallet.clone(), pair.clone()));
 
         assert_eq!(ttl_after_first, ttl_after_second);
     });

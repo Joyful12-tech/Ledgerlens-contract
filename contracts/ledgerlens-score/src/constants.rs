@@ -126,6 +126,12 @@ pub const DEFAULT_DISPUTE_REVEAL_WINDOW_SECS: u64 = 600;
 /// Maximum finality buffer duration — 24 hours.
 pub const MAX_FINALITY_BUFFER_SECS: u64 = 86_400;
 
+/// Escrow-named alias for [`MAX_FINALITY_BUFFER_SECS`]. The escrow hold window
+/// and the finality buffer are the same parameter under two names, so this
+/// constant must stay exactly equal to the canonical one — the two are
+/// interchangeable in both the contract and its tests.
+pub const MAX_ESCROW_HOLD_WINDOW_SECS: u64 = MAX_FINALITY_BUFFER_SECS;
+
 /// Default heartbeat alert threshold — 1 hour.
 pub const DEFAULT_HEARTBEAT_ALERT_THRESHOLD_SECS: u64 = 3_600;
 

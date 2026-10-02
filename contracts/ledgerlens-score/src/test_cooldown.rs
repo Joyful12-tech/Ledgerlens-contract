@@ -61,7 +61,11 @@ fn submit(
             }
         }
         let dig = commitment(env, &client.address, wallet, pair, score, START_TS, 90, 1);
-        Some(crate::ScoreAttestationInput { attestation: crate::MaybeScoreAttestation::Some(attest(env, &key, dig)), threshold_attestation: crate::MaybeThresholdAttestation::None, commitment: None })
+        Some(crate::ScoreAttestationInput {
+            attestation: crate::MaybeScoreAttestation::Some(attest(env, &key, dig)),
+            threshold_attestation: crate::MaybeThresholdAttestation::None,
+            commitment: None,
+        })
     } else {
         None
     };
@@ -101,22 +105,28 @@ fn try_submit(
             }
         }
         let dig = commitment(env, &client.address, wallet, pair, score, START_TS, 90, 1);
-        Some(crate::ScoreAttestationInput { attestation: crate::MaybeScoreAttestation::Some(attest(env, &key, dig)), threshold_attestation: crate::MaybeThresholdAttestation::None, commitment: None })
+        Some(crate::ScoreAttestationInput {
+            attestation: crate::MaybeScoreAttestation::Some(attest(env, &key, dig)),
+            threshold_attestation: crate::MaybeThresholdAttestation::None,
+            commitment: None,
+        })
     } else {
         None
     };
-    client.try_submit_score(
-        &Vec::new(env),
-        wallet,
-        pair,
-        &score,
-        &false,
-        &false,
-        &START_TS,
-        &90,
-        &1,
-        &att,
-    ).map(|_| ())
+    client
+        .try_submit_score(
+            &Vec::new(env),
+            wallet,
+            pair,
+            &score,
+            &false,
+            &false,
+            &START_TS,
+            &90,
+            &1,
+            &att,
+        )
+        .map(|_| ())
 }
 
 // ── Consensus submission helpers ──────────────────────────────────────────────
@@ -214,7 +224,12 @@ fn test_override_then_submit_restarts_cooldown() {
 
     submit(&env, &client, &wallet, &pair, 50);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
     submit(&env, &client, &wallet, &pair, 70);
 
     // A third submit immediately after must be rejected — the override only
@@ -231,7 +246,12 @@ fn test_override_then_submit_then_wait_full_cooldown() {
     let pair = symbol_short!("XLM_USDC");
 
     submit(&env, &client, &wallet, &pair, 50);
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
     submit(&env, &client, &wallet, &pair, 70);
 
     advance_to(&env, START_TS + DEFAULT_COOLDOWN_SECS);
@@ -251,7 +271,12 @@ fn test_override_does_not_affect_other_pairs() {
     submit(&env, &client, &wallet, &pair_a, 50);
     submit(&env, &client, &wallet, &pair_b, 60);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair_a, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair_a,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
 
     // pair_a is cleared — immediate re-submit works.
     submit(&env, &client, &wallet, &pair_a, 70);
@@ -272,7 +297,12 @@ fn test_override_does_not_affect_other_wallets() {
     submit(&env, &client, &wallet_a, &pair, 50);
     submit(&env, &client, &wallet_b, &pair, 60);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet_a, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet_a,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
 
     submit(&env, &client, &wallet_a, &pair, 70);
 
@@ -290,7 +320,12 @@ fn test_override_on_never_submitted_pair_is_noop() {
     let pair = symbol_short!("XLM_USDC");
 
     assert!(client.get_last_submit_time(&wallet, &pair).is_none());
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
     assert!(client.get_last_submit_time(&wallet, &pair).is_none());
 
     // First submit after a no-op override still works.
@@ -306,8 +341,18 @@ fn test_double_override_is_idempotent() {
 
     submit(&env, &client, &wallet, &pair, 50);
 
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
 
     assert!(client.get_last_submit_time(&wallet, &pair).is_none());
     submit(&env, &client, &wallet, &pair, 70);
@@ -327,7 +372,12 @@ fn test_batch_respects_override_for_single_entry() {
     submit(&env, &client, &wallet_b, &pair, 20);
 
     // Override only wallet_a.
-    client.override_rate_limit(&Vec::new(&env), &wallet_a, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet_a,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
 
     let mut batch: Vec<ScoreSubmission> = Vec::new(&env);
     batch.push_back(ScoreSubmission {
@@ -425,7 +475,12 @@ fn test_consensus_after_override_accepted() {
     let pair = symbol_short!("XLM_USDC");
 
     submit(&env, &client, &wallet, &pair, 50);
-    client.override_rate_limit(&Vec::new(&env), &wallet, &pair, &soroban_sdk::Bytes::from_slice(&env, b"admin"));
+    client.override_rate_limit(
+        &Vec::new(&env),
+        &wallet,
+        &pair,
+        &soroban_sdk::Bytes::from_slice(&env, b"admin"),
+    );
 
     let subs = consensus_pair(&env, &client, &key, &wallet, &pair, &[80, 82], START_TS);
     client.submit_consensus_score(&Vec::new(&env), &wallet, &pair, &subs, &START_TS);
