@@ -104,10 +104,8 @@ pub fn parameter_change_proposed(
     param_key: &Symbol,
     executable_after: u64,
 ) {
-    env.events().publish(
-        (symbol_short!("prm_prop"),),
-        (proposal_id, param_key.clone(), executable_after),
-    );
+    env.events()
+        .publish((symbol_short!("prm_prop"),), (proposal_id, param_key.clone(), executable_after));
 }
 
 pub fn parameter_change_executed(env: &Env, proposal_id: u64, param_key: &Symbol) {
@@ -234,7 +232,12 @@ pub fn decay_rate_updated(env: &Env, numerator: u64, denominator: u64) {
     env.events().publish((symbol_short!("decay_upd"),), (numerator, denominator));
 }
 
-pub fn signer_tier_updated(env: &Env, signer: &soroban_sdk::Address, min_score: u32, max_score: u32) {
+pub fn signer_tier_updated(
+    env: &Env,
+    signer: &soroban_sdk::Address,
+    min_score: u32,
+    max_score: u32,
+) {
     env.events().publish((symbol_short!("tier_upd"),), (signer.clone(), min_score, max_score));
 }
 
@@ -565,7 +568,13 @@ pub fn epoch_closed(env: &Env, epoch_id: u32) {
     env.events().publish((symbol_short!("epo_cls"),), epoch_id);
 }
 
-pub fn escalation_resolved(env: &Env, wallet: &Address, asset_pair: &Symbol, breach_count: u32, score: u32) {
+pub fn escalation_resolved(
+    env: &Env,
+    wallet: &Address,
+    asset_pair: &Symbol,
+    breach_count: u32,
+    score: u32,
+) {
     env.events().publish(
         (symbol_short!("esc_res"), wallet.clone(), asset_pair.clone()),
         (breach_count, score),
@@ -576,7 +585,14 @@ pub fn escalation_threshold_updated(env: &Env, old: u32, new: u32) {
     env.events().publish((symbol_short!("esc_thr"),), (old, new));
 }
 
-pub fn escalation_triggered(env: &Env, wallet: &Address, asset_pair: &Symbol, breach_count: u32, score: u32, threshold: u32) {
+pub fn escalation_triggered(
+    env: &Env,
+    wallet: &Address,
+    asset_pair: &Symbol,
+    breach_count: u32,
+    score: u32,
+    threshold: u32,
+) {
     env.events().publish(
         (symbol_short!("esc_trg"), wallet.clone(), asset_pair.clone()),
         (breach_count, score, threshold),
@@ -636,11 +652,14 @@ pub fn staleness_window_updated(env: &Env, window_secs: u64) {
     env.events().publish((symbol_short!("sw_upd"),), window_secs);
 }
 
-pub fn suspicious_same_ledger_submission(env: &Env, wallet: &Address, asset_pair: &Symbol, ledger_seq: u32) {
-    env.events().publish(
-        (symbol_short!("susp_gate"), wallet.clone(), asset_pair.clone()),
-        ledger_seq,
-    );
+pub fn suspicious_same_ledger_submission(
+    env: &Env,
+    wallet: &Address,
+    asset_pair: &Symbol,
+    ledger_seq: u32,
+) {
+    env.events()
+        .publish((symbol_short!("susp_gate"), wallet.clone(), asset_pair.clone()), ledger_seq);
 }
 
 pub fn wallet_cluster_assigned(env: &Env, wallet: &Address, cluster: u32) {

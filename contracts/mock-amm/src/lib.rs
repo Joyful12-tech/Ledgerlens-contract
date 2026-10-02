@@ -10,7 +10,9 @@
 //! patterns in `examples/amm_gate.rs` and `examples/amm_gate_example.rs`.
 
 use ledgerlens_score::LedgerLensScoreContractClient;
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
+};
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -75,11 +77,8 @@ impl MockAmm {
             .instance()
             .get(&DataKey::GateThreshold)
             .ok_or(MockAmmError::NotConfigured)?;
-        let min_confidence: u32 = env
-            .storage()
-            .instance()
-            .get(&DataKey::MinConfidence)
-            .unwrap_or(0);
+        let min_confidence: u32 =
+            env.storage().instance().get(&DataKey::MinConfidence).unwrap_or(0);
         Ok((ledgerlens, gate_threshold, min_confidence))
     }
 
@@ -115,7 +114,11 @@ impl MockAmm {
     /// When no score exists for the provider, the gate fails closed (same as
     /// `query_risk_gate_with_confidence` returning `false`) and the call is
     /// rejected with `HighRiskWallet`.
-    pub fn provide_liquidity_gated(env: Env, provider: Address, amount: i128) -> Result<(), MockAmmError> {
+    pub fn provide_liquidity_gated(
+        env: Env,
+        provider: Address,
+        amount: i128,
+    ) -> Result<(), MockAmmError> {
         if amount <= 0 {
             return Err(MockAmmError::InvalidAmount);
         }

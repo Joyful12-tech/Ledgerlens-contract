@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::collections::HashMap;
 
-use soroban_sdk::{Env, Address, Vec as SVec, Symbol};
 use soroban_sdk::testutils::Address as _;
+use soroban_sdk::{Address, Env, Symbol, Vec as SVec};
 
 use ledgerlens_score::{LedgerLensScoreContract, LedgerLensScoreContractClient, ScoreSubmission};
 
@@ -26,11 +26,19 @@ fn parse_price_average(trades: &Option<Vec<serde_json::Value>>) -> Option<f64> {
                 cnt += 1;
             }
         }
-        if cnt == 0 { None } else { Some(sum / cnt as f64) }
+        if cnt == 0 {
+            None
+        } else {
+            Some(sum / cnt as f64)
+        }
     })
 }
 
-fn process_snapshot(path: &str, env: &Env, client: &LedgerLensScoreContractClient) -> Result<usize> {
+fn process_snapshot(
+    path: &str,
+    env: &Env,
+    client: &LedgerLensScoreContractClient,
+) -> Result<usize> {
     let f = File::open(path).context("opening snapshot file")?;
     let reader = BufReader::new(f);
     let mut count = 0usize;
@@ -42,14 +50,17 @@ fn process_snapshot(path: &str, env: &Env, client: &LedgerLensScoreContractClien
             continue;
         }
         let entry: SnapshotEntry = serde_json::from_str(&l).context("parsing ndjson line")?;
-        let wallet_addr = addr_map.entry(entry.wallet.clone()).or_insert_with(|| Address::generate(env)).clone();
+        let wallet_addr =
+            addr_map.entry(entry.wallet.clone()).or_insert_with(|| Address::generate(env)).clone();
         let pair_sym = Symbol::new(env, &entry.asset_pair);
 
         // derive a simple heuristic score from average price
-        let score = parse_price_average(&entry.trades).map(|avg| {
-            let s = (avg * 10.0).round() as i64;
-            s.clamp(0, 100) as u32
-        }).unwrap_or(50u32);
+        let score = parse_price_average(&entry.trades)
+            .map(|avg| {
+                let s = (avg * 10.0).round() as i64;
+                s.clamp(0, 100) as u32
+            })
+            .unwrap_or(50u32);
 
         let mut batch: SVec<ScoreSubmission> = SVec::new(env);
         batch.push_back(ScoreSubmission {
@@ -64,8 +75,10 @@ fn process_snapshot(path: &str, env: &Env, client: &LedgerLensScoreContractClien
         });
 
         let result = client.submit_scores_batch(&batch);
-        println!("submitted wallet={}, pair={} -> accepted_count={} rejected_count={}",
-            entry.wallet, entry.asset_pair, result.accepted_count, result.rejected_count);
+        println!(
+            "submitted wallet={}, pair={} -> accepted_count={} rejected_count={}",
+            entry.wallet, entry.asset_pair, result.accepted_count, result.rejected_count
+        );
         count += 1;
     }
     Ok(count)

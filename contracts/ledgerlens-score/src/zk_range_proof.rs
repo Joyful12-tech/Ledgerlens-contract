@@ -25,12 +25,8 @@ extern crate std;
 pub struct Fe(pub [u64; 4]);
 
 impl Fe {
-    pub const P: Fe = Fe([
-        0xffffffffffffffed,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0x7fffffffffffffff,
-    ]);
+    pub const P: Fe =
+        Fe([0xffffffffffffffed, 0xffffffffffffffff, 0xffffffffffffffff, 0x7fffffffffffffff]);
 
     pub fn zero() -> Self {
         Fe([0; 4])
@@ -111,7 +107,8 @@ impl Fe {
         for i in 0..4 {
             let mut carry = 0u128;
             for j in 0..4 {
-                let product = (self.0[i] as u128) * (other.0[j] as u128) + (prod[i + j] as u128) + carry;
+                let product =
+                    (self.0[i] as u128) * (other.0[j] as u128) + (prod[i + j] as u128) + carry;
                 prod[i + j] = product as u64;
                 carry = product >> 64;
             }
@@ -182,19 +179,15 @@ impl Fe {
     }
 
     pub fn invert(self) -> Self {
-        let pm2 = Fe([
-            0xffffffffffffffeb,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0x7fffffffffffffff,
-        ]);
+        let pm2 =
+            Fe([0xffffffffffffffeb, 0xffffffffffffffff, 0xffffffffffffffff, 0x7fffffffffffffff]);
         self.pow(pm2)
     }
 
     pub fn to_bytes(self) -> [u8; 32] {
         let mut out = [0u8; 32];
         for i in 0..4 {
-            out[i*8 .. i*8 + 8].copy_from_slice(&self.0[i].to_le_bytes());
+            out[i * 8..i * 8 + 8].copy_from_slice(&self.0[i].to_le_bytes());
         }
         out
     }
@@ -208,19 +201,10 @@ impl Fe {
 pub struct Sc(pub [u64; 4]);
 
 impl Sc {
-    pub const L: Sc = Sc([
-        0x5812631a5cf5d3ed,
-        0x14def9dea2f79cd6,
-        0x0,
-        0x1000000000000000,
-    ]);
+    pub const L: Sc = Sc([0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0x0, 0x1000000000000000]);
 
-    pub const DIFF: Sc = Sc([
-        0xa7ed9ce5a30a2c13,
-        0xeb2106215d086329,
-        0xffffffffffffffff,
-        0xefffffffffffffff,
-    ]);
+    pub const DIFF: Sc =
+        Sc([0xa7ed9ce5a30a2c13, 0xeb2106215d086329, 0xffffffffffffffff, 0xefffffffffffffff]);
 
     pub fn zero() -> Self {
         Sc([0; 4])
@@ -292,7 +276,8 @@ impl Sc {
         for i in 0..4 {
             let mut carry = 0u128;
             for j in 0..4 {
-                let product = (self.0[i] as u128) * (other.0[j] as u128) + (prod[i + j] as u128) + carry;
+                let product =
+                    (self.0[i] as u128) * (other.0[j] as u128) + (prod[i + j] as u128) + carry;
                 prod[i + j] = product as u64;
                 carry = product >> 64;
             }
@@ -355,7 +340,7 @@ impl Sc {
     pub fn to_bytes(self) -> [u8; 32] {
         let mut out = [0u8; 32];
         for i in 0..4 {
-            out[i*8 .. i*8 + 8].copy_from_slice(&self.0[i].to_le_bytes());
+            out[i * 8..i * 8 + 8].copy_from_slice(&self.0[i].to_le_bytes());
         }
         out
     }
@@ -375,57 +360,48 @@ pub fn decompress_pt_32(env: &Env, bytes: &BytesN<32>) -> Option<Pt> {
     let mut y_bytes = arr;
     let sign = y_bytes[31] >> 7;
     y_bytes[31] &= 0x7f;
-    
+
     let mut y_limbs = [0u64; 4];
     for i in 0..4 {
         let mut b = [0u8; 8];
-        b.copy_from_slice(&y_bytes[i*8 .. i*8 + 8]);
+        b.copy_from_slice(&y_bytes[i * 8..i * 8 + 8]);
         y_limbs[i] = u64::from_le_bytes(b);
     }
     let y = Fe(y_limbs);
     if y.ge(&Fe::P) {
         return None;
     }
-    
+
     let y2 = y.mul(y);
     let u = y2.sub(Fe::one());
     let d = Fe::from_u64(121665).neg().mul(Fe::from_u64(121666).invert());
     let v = d.mul(y2).add(Fe::one());
-    
+
     let v2 = v.mul(v);
     let v3 = v2.mul(v);
     let v7 = v3.mul(v3).mul(v);
     let uv7 = u.mul(v7);
-    
-    let exp = Fe([
-        0xfffffffffffffffd,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0x0fffffffffffffff,
-    ]);
+
+    let exp = Fe([0xfffffffffffffffd, 0xffffffffffffffff, 0xffffffffffffffff, 0x0fffffffffffffff]);
     let uv7_exp = uv7.pow(exp);
     let mut x = u.mul(v3).mul(uv7_exp);
-    
+
     let vx2 = v.mul(x.mul(x));
     if vx2 != u {
-        let i_val = Fe([
-            0xc4ee1b274a0ea0b0,
-            0x2f431806ad2fe478,
-            0x2b4d00993dfbd7a7,
-            0x2b8324804fc1df0b,
-        ]);
+        let i_val =
+            Fe([0xc4ee1b274a0ea0b0, 0x2f431806ad2fe478, 0x2b4d00993dfbd7a7, 0x2b8324804fc1df0b]);
         x = x.mul(i_val);
         let vx2_i = v.mul(x.mul(x));
         if vx2_i != u {
             return None;
         }
     }
-    
+
     let x_lsb = (x.0[0] & 1) as u8;
     if x_lsb != sign {
         x = Fe::zero().sub(x);
     }
-    
+
     Some(Pt { x, y })
 }
 
@@ -441,10 +417,7 @@ pub struct Pt {
 
 impl Pt {
     pub fn identity() -> Self {
-        Pt {
-            x: Fe::zero(),
-            y: Fe::one(),
-        }
+        Pt { x: Fe::zero(), y: Fe::one() }
     }
 
     pub fn is_identity(&self) -> bool {
@@ -506,18 +479,8 @@ pub fn is_on_curve(x: Fe, y: Fe, d: Fe) -> bool {
 
 pub fn g() -> Pt {
     Pt {
-        x: Fe([
-            0xc9562d608f25d51a,
-            0x692cc7609525a7b2,
-            0xc0a4e231fdd6dc5c,
-            0x216936d3cd6e53fe,
-        ]),
-        y: Fe([
-            0x6666666666666658,
-            0x6666666666666666,
-            0x6666666666666666,
-            0x6666666666666666,
-        ]),
+        x: Fe([0xc9562d608f25d51a, 0x692cc7609525a7b2, 0xc0a4e231fdd6dc5c, 0x216936d3cd6e53fe]),
+        y: Fe([0x6666666666666658, 0x6666666666666666, 0x6666666666666666, 0x6666666666666666]),
     }
 }
 
@@ -559,38 +522,38 @@ impl Bulletproof {
     pub fn to_bytes(&self, env: &Env) -> Bytes {
         let mut buf = [0u8; 800];
         let mut offset = 0;
-        
+
         let pts = [&self.A, &self.S, &self.T1, &self.T2];
         for p in pts {
-            buf[offset..offset+32].copy_from_slice(&p.x.to_bytes());
-            buf[offset+32..offset+64].copy_from_slice(&p.y.to_bytes());
+            buf[offset..offset + 32].copy_from_slice(&p.x.to_bytes());
+            buf[offset + 32..offset + 64].copy_from_slice(&p.y.to_bytes());
             offset += 64;
         }
-        
+
         let scs = [&self.tx, &self.taux, &self.mu];
         for s in scs {
-            buf[offset..offset+32].copy_from_slice(&s.to_bytes());
+            buf[offset..offset + 32].copy_from_slice(&s.to_bytes());
             offset += 32;
         }
-        
+
         for p in &self.L {
-            buf[offset..offset+32].copy_from_slice(&p.x.to_bytes());
-            buf[offset+32..offset+64].copy_from_slice(&p.y.to_bytes());
+            buf[offset..offset + 32].copy_from_slice(&p.x.to_bytes());
+            buf[offset + 32..offset + 64].copy_from_slice(&p.y.to_bytes());
             offset += 64;
         }
-        
+
         for p in &self.R {
-            buf[offset..offset+32].copy_from_slice(&p.x.to_bytes());
-            buf[offset+32..offset+64].copy_from_slice(&p.y.to_bytes());
+            buf[offset..offset + 32].copy_from_slice(&p.x.to_bytes());
+            buf[offset + 32..offset + 64].copy_from_slice(&p.y.to_bytes());
             offset += 64;
         }
-        
+
         let scs2 = [&self.a, &self.b];
         for s in scs2 {
-            buf[offset..offset+32].copy_from_slice(&s.to_bytes());
+            buf[offset..offset + 32].copy_from_slice(&s.to_bytes());
             offset += 32;
         }
-        
+
         Bytes::from_array(env, &buf)
     }
 
@@ -598,7 +561,7 @@ impl Bulletproof {
         if bytes.len() != 800 {
             return None;
         }
-        
+
         let mut offset = 0;
         let read_pt = |bytes: &Bytes, offset: &mut u32| -> Option<Pt> {
             let mut x_limbs = [0u64; 4];
@@ -606,7 +569,7 @@ impl Bulletproof {
             for i in 0..4 {
                 let mut b = [0u8; 8];
                 for (j, byte) in b.iter_mut().enumerate() {
-                    *byte = bytes.get(*offset + (i as u32)*8 + j as u32)?;
+                    *byte = bytes.get(*offset + (i as u32) * 8 + j as u32)?;
                 }
                 x_limbs[i as usize] = u64::from_le_bytes(b);
             }
@@ -614,7 +577,7 @@ impl Bulletproof {
             for i in 0..4 {
                 let mut b = [0u8; 8];
                 for (j, byte) in b.iter_mut().enumerate() {
-                    *byte = bytes.get(*offset + (i as u32)*8 + j as u32)?;
+                    *byte = bytes.get(*offset + (i as u32) * 8 + j as u32)?;
                 }
                 y_limbs[i as usize] = u64::from_le_bytes(b);
             }
@@ -628,29 +591,29 @@ impl Bulletproof {
                 None
             }
         };
-        
+
         let read_sc = |bytes: &Bytes, offset: &mut u32| -> Option<Sc> {
             let mut limbs = [0u64; 4];
             for i in 0..4 {
                 let mut b = [0u8; 8];
                 for (j, byte) in b.iter_mut().enumerate() {
-                    *byte = bytes.get(*offset + (i as u32)*8 + j as u32)?;
+                    *byte = bytes.get(*offset + (i as u32) * 8 + j as u32)?;
                 }
                 limbs[i as usize] = u64::from_le_bytes(b);
             }
             *offset += 32;
             Some(Sc(limbs))
         };
-        
+
         let A = read_pt(bytes, &mut offset)?;
         let S = read_pt(bytes, &mut offset)?;
         let T1 = read_pt(bytes, &mut offset)?;
         let T2 = read_pt(bytes, &mut offset)?;
-        
+
         let tx = read_sc(bytes, &mut offset)?;
         let taux = read_sc(bytes, &mut offset)?;
         let mu = read_sc(bytes, &mut offset)?;
-        
+
         let mut L = [Pt::identity(); 3];
         for item in &mut L {
             *item = read_pt(bytes, &mut offset)?;
@@ -660,23 +623,11 @@ impl Bulletproof {
         for item in &mut R {
             *item = read_pt(bytes, &mut offset)?;
         }
-        
+
         let a = read_sc(bytes, &mut offset)?;
         let b = read_sc(bytes, &mut offset)?;
-        
-        Some(Bulletproof {
-            A,
-            S,
-            T1,
-            T2,
-            tx,
-            taux,
-            mu,
-            L,
-            R,
-            a,
-            b,
-        })
+
+        Some(Bulletproof { A, S, T1, T2, tx, taux, mu, L, R, a, b })
     }
 }
 
@@ -688,7 +639,7 @@ fn hash_to_scalar(env: &Env, data: &Bytes) -> Sc {
     let mut limbs = [0u64; 4];
     for i in 0..4 {
         let mut b = [0u8; 8];
-        b.copy_from_slice(&arr[i*8 .. i*8 + 8]);
+        b.copy_from_slice(&arr[i * 8..i * 8 + 8]);
         limbs[i] = u64::from_le_bytes(b);
     }
     let mut val = Sc(limbs);
@@ -718,12 +669,12 @@ fn hash_fs_y_z(env: &Env, V: &Pt, A: &Pt, S: &Pt) -> (Sc, Sc) {
     append_pt(env, &mut data, A);
     append_pt(env, &mut data, S);
     let y = hash_to_scalar(env, &data);
-    
+
     let mut data2 = Bytes::new(env);
     data2.append(&Bytes::from_array(env, b"z"));
     append_sc(env, &mut data2, &y);
     let z = hash_to_scalar(env, &data2);
-    
+
     (y, z)
 }
 
@@ -776,7 +727,7 @@ impl SeededPrng {
         let mut limbs = [0u64; 4];
         for i in 0..4 {
             let mut b = [0u8; 8];
-            b.copy_from_slice(&arr[i*8 .. i*8 + 8]);
+            b.copy_from_slice(&arr[i * 8..i * 8 + 8]);
             limbs[i] = u64::from_le_bytes(b);
         }
         let mut val = Sc(limbs);
@@ -791,7 +742,7 @@ impl SeededPrng {
 pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bulletproof {
     let (g_pt, h_pt, d) = get_generators();
     let (gs, hs) = get_vector_generators(d);
-    
+
     let mut a_L = [Sc::zero(); 8];
     let mut a_R = [Sc::zero(); 8];
     for i in 0..8 {
@@ -799,13 +750,13 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
         a_L[i] = Sc::from_u64(bit);
         a_R[i] = Sc::from_u64(bit).sub(Sc::one());
     }
-    
+
     let alpha = prng.next_scalar(env);
     let mut A = h_pt.mul(alpha, d);
     for i in 0..8 {
         A = A.add(gs[i].mul(a_L[i], d), d).add(hs[i].mul(a_R[i], d), d);
     }
-    
+
     let mut s_L = [Sc::zero(); 8];
     let mut s_R = [Sc::zero(); 8];
     for i in 0..8 {
@@ -817,7 +768,7 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
     for i in 0..8 {
         S = S.add(gs[i].mul(s_L[i], d), d).add(hs[i].mul(s_R[i], d), d);
     }
-    
+
     let V = g_pt.mul(Sc::from_u64(v as u64), d).add(h_pt.mul(r, d), d);
     let (y, z) = hash_fs_y_z(env, &V, &A, &S);
     #[cfg(test)]
@@ -827,34 +778,34 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
         std::println!("PROVER: S.x = {:?}, S.y = {:?}", S.x, S.y);
         std::println!("PROVER: y = {:?}, z = {:?}", y, z);
     }
-    
+
     let mut y_pow = [Sc::one(); 8];
     for i in 1..8 {
-        y_pow[i] = y_pow[i-1].mul(y);
+        y_pow[i] = y_pow[i - 1].mul(y);
     }
-    
+
     let z2 = z.mul(z);
     let z3 = z2.mul(z);
-    
+
     let mut t1 = Sc::zero();
     let mut t2 = Sc::zero();
     for i in 0..8 {
         let l_0 = a_L[i].sub(z);
         let l_1 = s_L[i];
-        
+
         let two_pow_i = Sc::from_u64(1 << i);
         let r_0 = y_pow[i].mul(a_R[i].add(z)).add(z2.mul(two_pow_i));
         let r_1 = y_pow[i].mul(s_R[i]);
-        
+
         t1 = t1.add(l_0.mul(r_1).add(l_1.mul(r_0)));
         t2 = t2.add(l_1.mul(r_1));
     }
-    
+
     let tau1 = prng.next_scalar(env);
     let tau2 = prng.next_scalar(env);
     let T1 = g_pt.mul(t1, d).add(h_pt.mul(tau1, d), d);
     let T2 = g_pt.mul(t2, d).add(h_pt.mul(tau2, d), d);
-    
+
     let x = hash_fs_x(env, &T1, &T2);
     #[cfg(test)]
     {
@@ -863,7 +814,7 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
         std::println!("PROVER: x = {:?}", x);
     }
     let x2 = x.mul(x);
-    
+
     let mut l = [Sc::zero(); 8];
     let mut r_vec = [Sc::zero(); 8];
     let mut tx = Sc::zero();
@@ -873,13 +824,13 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
         r_vec[i] = y_pow[i].mul(a_R[i].add(z).add(s_R[i].mul(x))).add(z2.mul(two_pow_i));
         tx = tx.add(l[i].mul(r_vec[i]));
     }
-    
+
     let taux = tau2.mul(x2).add(tau1.mul(x)).add(z2.mul(r));
     let mu = alpha.add(beta.mul(x));
-    
+
     let w = hash_fs_w(env, &tx, &taux, &mu);
     let Q = g_pt.mul(w, d);
-    
+
     let mut gs_ip = gs;
     let mut hs_ip = hs;
     let y_inv = y.invert();
@@ -888,13 +839,13 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
         *item = item.mul(y_inv_pow, d);
         y_inv_pow = y_inv_pow.mul(y_inv);
     }
-    
+
     let mut ip_l = l;
     let mut ip_r = r_vec;
-    
+
     let mut L = [Pt::identity(); 3];
     let mut R = [Pt::identity(); 3];
-    
+
     let mut len = 8;
     for round in 0..3 {
         let half = len / 2;
@@ -904,51 +855,41 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
             c_L = c_L.add(ip_l[i].mul(ip_r[half + i]));
             c_R = c_R.add(ip_l[half + i].mul(ip_r[i]));
         }
-        
+
         let mut L_pt = Q.mul(c_L, d);
         for i in 0..half {
-            L_pt = L_pt.add(gs_ip[half + i].mul(ip_l[i], d), d)
-                      .add(hs_ip[i].mul(ip_r[half + i], d), d);
+            L_pt = L_pt
+                .add(gs_ip[half + i].mul(ip_l[i], d), d)
+                .add(hs_ip[i].mul(ip_r[half + i], d), d);
         }
-        
+
         let mut R_pt = Q.mul(c_R, d);
         for i in 0..half {
-            R_pt = R_pt.add(gs_ip[i].mul(ip_l[half + i], d), d)
-                      .add(hs_ip[half + i].mul(ip_r[i], d), d);
+            R_pt = R_pt
+                .add(gs_ip[i].mul(ip_l[half + i], d), d)
+                .add(hs_ip[half + i].mul(ip_r[i], d), d);
         }
-        
+
         L[round] = L_pt;
         R[round] = R_pt;
-        
+
         let u = hash_fs_challenge_ip(env, round, &L[round], &R[round]);
         let u_inv = u.invert();
-        
+
         for i in 0..half {
             ip_l[i] = ip_l[i].mul(u).add(ip_l[half + i].mul(u_inv));
             ip_r[i] = ip_r[i].mul(u_inv).add(ip_r[half + i].mul(u));
         }
-        
+
         for i in 0..half {
             gs_ip[i] = gs_ip[i].mul(u_inv, d).add(gs_ip[half + i].mul(u, d), d);
             hs_ip[i] = hs_ip[i].mul(u, d).add(hs_ip[half + i].mul(u_inv, d), d);
         }
-        
+
         len = half;
     }
-    
-    Bulletproof {
-        A,
-        S,
-        T1,
-        T2,
-        tx,
-        taux,
-        mu,
-        L,
-        R,
-        a: ip_l[0],
-        b: ip_r[0],
-    }
+
+    Bulletproof { A, S, T1, T2, tx, taux, mu, L, R, a: ip_l[0], b: ip_r[0] }
 }
 
 // ── Bulletproof Verifier ──────────────────────────────────────────────────────
@@ -956,7 +897,7 @@ pub fn prove_range_proof(env: &Env, v: u32, r: Sc, mut prng: SeededPrng) -> Bull
 pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
     let (g_pt, h_pt, d) = get_generators();
     let (gs, hs) = get_vector_generators(d);
-    
+
     let (y, z) = hash_fs_y_z(env, &V, &proof.A, &proof.S);
     let x = hash_fs_x(env, &proof.T1, &proof.T2);
     #[cfg(test)]
@@ -969,11 +910,11 @@ pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
         std::println!("VERIFIER: T2.x = {:?}, T2.y = {:?}", proof.T2.x, proof.T2.y);
         std::println!("VERIFIER: x = {:?}", x);
     }
-    
+
     let z2 = z.mul(z);
     let z3 = z2.mul(z);
     let x2 = x.mul(x);
-    
+
     let mut sum_y = Sc::zero();
     let mut sum_two = Sc::zero();
     let mut y_pow = Sc::one();
@@ -983,24 +924,25 @@ pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
         y_pow = y_pow.mul(y);
     }
     let delta = z.sub(z2).mul(sum_y).sub(z3.mul(sum_two));
-    
+
     let lhs1 = g_pt.mul(proof.tx, d).add(h_pt.mul(proof.taux, d), d);
-    let rhs1 = V.mul(z2, d)
+    let rhs1 = V
+        .mul(z2, d)
         .add(g_pt.mul(delta, d), d)
         .add(proof.T1.mul(x, d), d)
         .add(proof.T2.mul(x2, d), d);
-        
+
     if lhs1 != rhs1 {
         #[cfg(test)]
         std::println!("verify_range_proof: lhs1 == rhs1 check failed!");
         return false;
     }
-    
+
     let w = hash_fs_w(env, &proof.tx, &proof.taux, &proof.mu);
     let Q = g_pt.mul(w, d);
-    
+
     let mut P = proof.A.add(proof.S.mul(x, d), d).add(h_pt.mul(proof.mu.neg(), d), d);
-    
+
     let y_inv = y.invert();
     let mut y_inv_pow = Sc::one();
     for i in 0..8 {
@@ -1009,9 +951,9 @@ pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
         P = P.add(hs[i].mul(term, d), d);
         y_inv_pow = y_inv_pow.mul(y_inv);
     }
-    
+
     let mut P_prime = P.add(Q.mul(proof.tx, d), d);
-    
+
     let gs_ip = gs;
     let mut hs_ip = hs;
     let mut y_inv_pow = Sc::one();
@@ -1019,7 +961,7 @@ pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
         *item = item.mul(y_inv_pow, d);
         y_inv_pow = y_inv_pow.mul(y_inv);
     }
-    
+
     let mut challenges = [Sc::zero(); 3];
     let mut u_inv_sq = [Sc::zero(); 3];
     let mut u_sq = [Sc::zero(); 3];
@@ -1029,11 +971,12 @@ pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
         let u_inv = u.invert();
         u_sq[round] = u.mul(u);
         u_inv_sq[round] = u_inv.mul(u_inv);
-        
-        P_prime = P_prime.add(proof.L[round].mul(u_sq[round], d), d)
-                         .add(proof.R[round].mul(u_inv_sq[round], d), d);
+
+        P_prime = P_prime
+            .add(proof.L[round].mul(u_sq[round], d), d)
+            .add(proof.R[round].mul(u_inv_sq[round], d), d);
     }
-    
+
     let mut gs_final = Pt::identity();
     let mut hs_final = Pt::identity();
     for i in 0..8 {
@@ -1052,12 +995,10 @@ pub fn verify_range_proof(env: &Env, V: Pt, proof: &Bulletproof) -> bool {
         gs_final = gs_final.add(gs_ip[i].mul(s, d), d);
         hs_final = hs_final.add(hs_ip[i].mul(s_prime, d), d);
     }
-    
+
     let ab = proof.a.mul(proof.b);
-    let expected = gs_final.mul(proof.a, d)
-        .add(hs_final.mul(proof.b, d), d)
-        .add(Q.mul(ab, d), d);
-        
+    let expected = gs_final.mul(proof.a, d).add(hs_final.mul(proof.b, d), d).add(Q.mul(ab, d), d);
+
     let res = P_prime == expected;
     if !res {
         #[cfg(test)]
