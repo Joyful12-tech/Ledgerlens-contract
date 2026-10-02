@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **Escrow alias accessors**: `get_escrow_hold_window`, `get_escrow_score`, and `cancel_escrow_score` as escrow-named aliases over `get_finality_buffer`, `get_pending_score`, and `cancel_pending_score`, plus the `MAX_ESCROW_HOLD_WINDOW_SECS` constant. `test_escrow_aliases_match_canonical_names` pins the aliases to their canonical names so they cannot drift.
+- **Escrow validation coverage**: `test_escrow` is now declared in `lib.rs` (it previously never compiled) and covers valid, invalid, duplicate, boundary and admin-authorization cases. `tests/composability/tests/external_calls_mocked.rs` additionally proves a score in the escrow hold window authorises nothing across the real `mock-amm` / `mock-lending` call boundary.
 - **`get_admin_set`**: Read-only query returning the current M-of-N admin co-signer set, mirroring `get_admin_signers`. Closes #239.
 - **Rustdoc examples**: Added runnable usage examples for `get_hysteresis_margin` (closes #229) and `get_staleness_window` (closes #227).
 - **Parameter Change Governance**: Added `propose_parameter_change`, `execute_parameter_change`, and `veto_parameter_change` for time-locked admin parameter changes with service-signer veto during the first half of the delay window. Supports cooldown, history depth, decay rate, velocity cap, and upgrade delay parameters. See [`docs/governance.md`](docs/governance.md).
@@ -16,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Batch submit benchmarks**: Criterion suite in `contracts/ledgerlens-score/benches/batch_submit.rs` measuring throughput and Soroban budget cost at batch sizes 1, 10, 50, and 100. Results uploaded as CI artifacts on merge to `main`.
 
 ### Changed
+- **Escrow path now validates before parking a score**: when the finality buffer is active, `submit_score` calls `validate_risk_score` before writing to pending storage, matching the immediate-commit path. Previously an out-of-range score (`score > 100`, `confidence > 100`, or a zero timestamp) was accepted into escrow unchecked and only reached live storage unvalidated. `commit_pending_score` re-validates as well, so the permissionless commit cannot write an entry that predates this guard.
 - **Lazy score TTL extension**: `set_score` now skips `extend_ttl` when the entry's estimated remaining TTL is still at or above `SCORE_TTL_THRESHOLD`, reducing ledger instruction cost for batch resubmissions to pre-warmed entries.
 
 ---

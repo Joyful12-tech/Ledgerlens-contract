@@ -85,6 +85,9 @@ mod test_cooldown;
 // #[cfg(test)]
 // mod test_finality_buffer;
 
+#[cfg(test)]
+mod test_escrow;
+
 // #[cfg(test)]
 // mod test_heartbeat;
 
@@ -441,6 +444,24 @@ impl LedgerLensScoreContract {
             Self::record_service_activity(&env);
         } else {
             // Buffer active — validate but hold in pending storage.
+            // Validation happens here, before the entry is parked, so an
+            // out-of-range score can never reach escrow. The immediate-commit
+            // branch gets the same guarantee via `write_score_with_rate_limit`.
+            Self::validate_risk_score(
+                &env,
+                &RiskScore {
+                    score,
+                    benford_flag,
+                    ml_flag,
+                    timestamp,
+                    confidence,
+                    model_version,
+                    benford_score: 0,
+                    ml_score: 0,
+                    network_score: 0,
+                    commitment: commitment.clone(),
+                },
+            )?;
             // Rate limit still applies so we can't be flooded with pending entries.
             let last_submit = storage::get_last_submit_time(&env, &wallet, &asset_pair);
             let base_cooldown = storage::get_pair_cooldown_secs(&env, &asset_pair);
@@ -515,6 +536,13 @@ impl LedgerLensScoreContract {
         storage::get_finality_buffer_secs(&env)
     }
 
+    /// Escrow-named alias for `get_finality_buffer`. Returns the configured
+    /// escrow hold window in seconds; `0` means the hold window is disabled
+    /// and `submit_score` commits straight to live storage.
+    pub fn get_escrow_hold_window(env: Env) -> u64 {
+        Self::get_finality_buffer(env)
+    }
+
     /// Alias for `set_finality_buffer`. Configures the escrow hold window in
     /// seconds. `0` disables the hold window and causes `submit_score` to
     /// commit immediately.
@@ -545,6 +573,33 @@ impl LedgerLensScoreContract {
         asset_pair: Symbol,
     ) -> Option<PendingScoreEntry> {
         storage::get_pending_score(&env, &wallet, &asset_pair)
+    }
+
+    /// Escrow-named alias for `get_pending_score`. Returns the score currently
+    /// held in escrow for `(wallet, asset_pair)`, or `None` when the hold
+    /// window is disabled or nothing is pending.
+    pub fn get_escrow_score(
+        env: Env,
+        wallet: Address,
+        asset_pair: Symbol,
+    ) -> Option<PendingScoreEntry> {
+        Self::get_pending_score(env, wallet, asset_pair)
+    }
+
+    /// Escrow-named alias for `cancel_pending_score`. Discards a pending score
+    /// before it can take effect. Admin only.
+    ///
+    /// # Errors
+    /// - [`Error::NotInitialized`] if the contract has no admin yet.
+    /// - [`Error::NoPendingScore`] if no pending score exists for
+    ///   `(wallet, asset_pair)`.
+    pub fn cancel_escrow_score(
+        env: Env,
+        admin_signers: Vec<Address>,
+        wallet: Address,
+        asset_pair: Symbol,
+    ) -> Result<(), Error> {
+        Self::cancel_pending_score(env, admin_signers, wallet, asset_pair)
     }
 
     /// Commits a pending score to live storage once its hold window has
@@ -584,6 +639,12 @@ impl LedgerLensScoreContract {
             network_score: 0,
             commitment: pending.commitment.clone(),
         };
+
+        // Re-validate at commit time. `submit_score` already refuses to park an
+        // invalid entry, but commit is permissionless and writes to live
+        // storage, so it must not trust the parked entry blindly. This also
+        // covers any entry parked before these guards existed.
+        Self::validate_risk_score(&env, &risk_score)?;
 
         storage::set_score(&env, &wallet, &asset_pair, &risk_score);
         storage::push_score_history(&env, &wallet, &asset_pair, &risk_score);
